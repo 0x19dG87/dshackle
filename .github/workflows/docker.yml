@@ -39,7 +39,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
-        run: ./gradlew jib -Pdocker=ghcr.io/${{ github.repository_owner }}
+        run: ./gradlew jib -Pdocker=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}
         env:
           DOCKERHUB_USERNAME: ${{ github.actor }}
           DOCKERHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
