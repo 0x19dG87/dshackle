@@ -20,6 +20,12 @@ jobs:
           fetch-tags: true
           submodules: recursive
 
+      - name: Fetch tags
+        run: |
+          git fetch --tags --force
+          echo "Available tags:"
+          git tag -l
+
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
