@@ -38,8 +38,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
-        run: ./gradlew jib -Pdocker=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}
-        env:
-          DOCKERHUB_USERNAME: ${{ github.actor }}
-          DOCKERHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build with Jib to local Docker
+        run: ./gradlew jibDockerBuild -Pdocker=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}
+
+      - name: Push to ghcr.io
+        run: |
+          REPO="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/dshackle"
+          docker push ${REPO}:snapshot
+          docker push ${REPO}:latest
+          docker images --format '{{.Repository}}:{{.Tag}}' | grep "^${REPO}:" | xargs -I {} docker push {}
