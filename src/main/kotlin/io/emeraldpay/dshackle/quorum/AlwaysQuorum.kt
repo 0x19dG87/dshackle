@@ -29,13 +29,35 @@ open class AlwaysQuorum : CallQuorum {
     private var rpcError: ChainCallError? = null
     private var sig: ResponseSigner.Signature? = null
     private val resolvers = ArrayList<Upstream>()
+    private val triedUpstreams = HashSet<String>()
+    private var allUpstreamsTried = false
 
     override fun isResolved(): Boolean {
         return resolved
     }
 
     override fun isFailed(): Boolean {
-        return false
+        val error = rpcError ?: return false
+        // Stop if non-retryable error or all upstreams have been tried
+        return isNonRetryableError(error) || allUpstreamsTried
+    }
+
+    private fun isNonRetryableError(error: ChainCallError): Boolean {
+        // Check message first - execution reverted can come with various codes
+        if (error.message.contains("execution reverted", ignoreCase = true)) {
+            return true
+        }
+        // Non-retryable error codes
+        return when (error.code) {
+            3 -> true        // EIP-1474: execution reverted
+            -32700 -> true   // Parse error
+            -32600 -> true   // Invalid request
+            -32601 -> true   // Method not found
+            -32602 -> true   // Invalid params
+            -32003 -> true   // Transaction rejected
+            -32004 -> true   // Method not supported
+            else -> false    // All others are retryable (-32000, -32001, -32002, -32005, etc.)
+        }
     }
 
     override fun getSignature(): ResponseSigner.Signature? {
@@ -60,6 +82,10 @@ open class AlwaysQuorum : CallQuorum {
         upstream: Upstream,
     ) {
         this.rpcError = error.error
+        // If we've seen this upstream before, we've cycled through all of them
+        if (!triedUpstreams.add(upstream.getId())) {
+            allUpstreamsTried = true
+        }
         sig = signature
         resolvers.add(upstream)
     }
