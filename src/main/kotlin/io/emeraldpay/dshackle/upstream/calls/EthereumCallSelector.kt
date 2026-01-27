@@ -165,6 +165,11 @@ class EthereumCallSelector(
                 .read(BlockId.from(blockHash))
                 .onErrorResume { Mono.empty() }
                 .map { Selector.HeightMatcher(it) }
+                .switchIfEmpty(
+                    // Block hash not in cache - allow all upstreams to be tried.
+                    // Role-based ordering and retry mechanism will handle routing.
+                    Mono.just(Selector.empty),
+                )
         } catch (e: DecoderException) {
             log.warn("Invalid blockHash: $blockHash")
             Mono.empty()

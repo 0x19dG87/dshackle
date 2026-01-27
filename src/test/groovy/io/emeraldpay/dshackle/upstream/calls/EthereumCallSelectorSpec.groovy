@@ -312,7 +312,7 @@ class EthereumCallSelectorSpec extends Specification {
         "eth_getUncleByBlockNumberAndIndex" | '["earliest"]' | 0L
     }
 
-    def "No height matcher for getByHash method"() {
+    def "Returns empty matcher when hash not in cache to allow all upstreams"() {
         setup:
         def hash = "0xa6af163aab691919c595e2a466f0a7b01f1dff8cfd9631dee811df57064c2d32"
         def cache = Mock(Caches) { caches ->
@@ -330,8 +330,9 @@ class EthereumCallSelectorSpec extends Specification {
         )
 
         then:
+        // When hash is not in cache, allow all upstreams to be tried
         StepVerifier.create(act)
-                .expectNext()
+                .expectNext(Selector.empty)
                 .expectComplete()
                 .verify(Duration.ofSeconds(1))
 
