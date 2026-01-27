@@ -164,7 +164,7 @@ class EthereumCallSelector(
             caches.getLastHeightByHash()
                 .read(BlockId.from(blockHash))
                 .onErrorResume { Mono.empty() }
-                .map { Selector.HeightMatcher(it) }
+                .map<Selector.Matcher> { Selector.HeightMatcher(it) }
                 .switchIfEmpty(
                     // Block hash not in cache - allow all upstreams to be tried.
                     // Role-based ordering and retry mechanism will handle routing.
