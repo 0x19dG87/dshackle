@@ -35,7 +35,7 @@ open class AlwaysQuorum : CallQuorum {
     }
 
     override fun isFailed(): Boolean {
-        return rpcError != null
+        return false
     }
 
     override fun getSignature(): ResponseSigner.Signature? {
