@@ -29,8 +29,6 @@ open class AlwaysQuorum : CallQuorum {
     private var rpcError: ChainCallError? = null
     private var sig: ResponseSigner.Signature? = null
     private val resolvers = ArrayList<Upstream>()
-    private val triedUpstreams = HashSet<String>()
-    private var allUpstreamsTried = false
 
     override fun isResolved(): Boolean {
         return resolved
@@ -38,8 +36,9 @@ open class AlwaysQuorum : CallQuorum {
 
     override fun isFailed(): Boolean {
         val error = rpcError ?: return false
-        // Stop if non-retryable error or all upstreams have been tried
-        return isNonRetryableError(error) || allUpstreamsTried
+        // Stop only for non-retryable errors
+        // For retryable errors, let FilteredApis exhaust all upstreams through its finite retry mechanism
+        return isNonRetryableError(error)
     }
 
     private fun isNonRetryableError(error: ChainCallError): Boolean {
@@ -82,10 +81,6 @@ open class AlwaysQuorum : CallQuorum {
         upstream: Upstream,
     ) {
         this.rpcError = error.error
-        // If we've seen this upstream before, we've cycled through all of them
-        if (!triedUpstreams.add(upstream.getId())) {
-            allUpstreamsTried = true
-        }
         sig = signature
         resolvers.add(upstream)
     }
