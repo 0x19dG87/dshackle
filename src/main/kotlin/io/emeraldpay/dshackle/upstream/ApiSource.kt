@@ -31,4 +31,10 @@ interface ApiSource : Publisher<Upstream> {
     fun attempts(): AtomicInteger
 
     fun upstreamsMatchesResponse(): UpstreamsMatchesResponse?
+
+    /**
+     * Report that an upstream has failed. Used to skip other upstreams from the same provider.
+     * Default implementation does nothing - override to enable provider-level failure tracking.
+     */
+    fun reportFailure(upstreamId: String) {}
 }

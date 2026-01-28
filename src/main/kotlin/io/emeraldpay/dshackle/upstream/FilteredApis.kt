@@ -103,6 +103,8 @@ class FilteredApis(
     private var upstreamsMatchesResponse: UpstreamsMatchesResponse? = UpstreamsMatchesResponse()
     // Track upstreams that have been tried to prioritize untried ones in retries
     private val triedUpstreams = mutableSetOf<String>()
+    // Track providers that have failed to skip other upstreams from the same provider
+    private val failedProviders = mutableSetOf<String>()
 
     init {
         fallbackUpstreams = allUpstreams.filter {
@@ -175,6 +177,14 @@ class FilteredApis(
             .map { it.t2 }
             .filter { up ->
                 val upstreamId = up.getId()
+
+                // Skip upstream if its provider has already failed
+                val provider = up.getLabels().firstOrNull()?.get("provider")
+                if (provider != null && failedProviders.contains(provider)) {
+                    this.request(1)
+                    return@filter false
+                }
+
                 val alreadyTried = triedUpstreams.contains(upstreamId)
                 val allUpstreamsTried = triedUpstreams.size >= totalUniqueUpstreams
 
@@ -221,6 +231,12 @@ class FilteredApis(
 
     override fun resolve() {
         control.tryEmitComplete()
+    }
+
+    override fun reportFailure(upstreamId: String) {
+        allUpstreams.find { it.getId() == upstreamId }
+            ?.getLabels()?.firstOrNull()?.get("provider")
+            ?.let { failedProviders.add(it) }
     }
 
     override fun request(tries: Int) {

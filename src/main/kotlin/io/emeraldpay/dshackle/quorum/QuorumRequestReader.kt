@@ -185,6 +185,8 @@ class QuorumRequestReader(
                 //
                 val cleanErr: ChainException = getError(key, err)
                 quorum.record(cleanErr, null, api)
+                // Report failure to skip other upstreams from the same provider
+                apiControl.reportFailure(api.getId())
                 // if it's failed after that, then we don't need more calls, stop api source
                 if (quorum.isFailed()) {
                     val msgQuorumFailed = "Quorum is failed, stop api source. Upstream ${api.getId()}, method ${key.method}"
