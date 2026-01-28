@@ -25,6 +25,7 @@ import io.emeraldpay.dshackle.upstream.ChainException
 import io.emeraldpay.dshackle.upstream.ChainRequest
 import io.emeraldpay.dshackle.upstream.ChainResponse
 import io.emeraldpay.dshackle.upstream.Upstream
+import io.emeraldpay.dshackle.upstream.cache.BlockNotFoundCache
 import io.emeraldpay.dshackle.upstream.error.UpstreamErrorHandler
 import io.emeraldpay.dshackle.upstream.ethereum.rpc.RpcException
 import io.emeraldpay.dshackle.upstream.signature.ResponseSigner
@@ -137,6 +138,14 @@ class QuorumRequestReader(
     }
 
     private fun callApi(api: Upstream, key: ChainRequest): Mono<Tuple3<ChainResponse, Optional<ResponseSigner.Signature>, Upstream>> {
+        // Check if this upstream recently failed for this block hash
+        val blockHash = BlockNotFoundCache.extractBlockHashFromCallParams(key.params)
+        if (blockHash != null && BlockNotFoundCache.hasRecentFailure(api.getId(), blockHash)) {
+            log.trace("Skipping upstream ${api.getId()} - recently failed for block $blockHash")
+            apiControl.request(1)
+            return Mono.empty()
+        }
+
         val apiReader = api.getIngressReader()
         val spanParams = mapOf(
             SPAN_REQUEST_API_TYPE to apiReader.javaClass.name,
@@ -178,6 +187,12 @@ class QuorumRequestReader(
                     log.debug(msgError)
                 } else {
                     log.warn(msgError)
+                }
+
+                // Cache "block not found" errors to skip this upstream for subsequent requests
+                BlockNotFoundCache.extractBlockHashFromError(err.message)?.let { blockHash ->
+                    BlockNotFoundCache.recordBlockNotFound(api.getId(), blockHash)
+                    log.trace("Cached block not found for upstream ${api.getId()}, block $blockHash")
                 }
 
                 // when the call failed with an error we want to notify the quorum because
