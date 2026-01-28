@@ -28,7 +28,7 @@ class RestConnectorFactory(
 
         return GenericRpcConnector(
             GenericConnectorFactory.ConnectorMode.RPC_ONLY,
-            httpFactory.create(upstream.getId(), chain),
+            httpFactory.create(upstream.getId(), chain, upstream.getOptions().timeout),
             null,
             upstream,
             forkChoice,

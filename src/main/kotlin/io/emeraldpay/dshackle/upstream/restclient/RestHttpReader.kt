@@ -22,6 +22,7 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Scheduler
 import reactor.kotlin.core.publisher.switchIfEmpty
 import reactor.netty.http.client.HttpClientResponse
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 
 class RestHttpReader(
@@ -34,7 +35,8 @@ class RestHttpReader(
     basicAuth: AuthConfig.ClientBasicAuth? = null,
     tlsCAAuth: ByteArray? = null,
     customHeaders: Map<String, String> = emptyMap(),
-) : HttpReader(target, maxConnections, queueSize, metrics, basicAuth, tlsCAAuth, customHeaders) {
+    timeout: Duration = Duration.ofSeconds(60),
+) : HttpReader(target, maxConnections, queueSize, metrics, basicAuth, tlsCAAuth, customHeaders, timeout) {
 
     private val parser = ResponseRpcParser()
     private val requestParser = RestRequestParser

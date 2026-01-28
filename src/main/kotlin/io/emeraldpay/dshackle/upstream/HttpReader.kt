@@ -28,9 +28,10 @@ abstract class HttpReader(
     basicAuth: AuthConfig.ClientBasicAuth? = null,
     tlsCAAuth: ByteArray? = null,
     customHeaders: Map<String, String> = emptyMap(),
+    timeout: Duration = Duration.ofSeconds(60),
 ) : ChainReader {
 
-    constructor() : this("", 1500, 1000, null)
+    constructor() : this("", 1500, 1000, null, null, null, emptyMap(), Duration.ofSeconds(60))
 
     protected val httpClient: HttpClient
 
@@ -47,6 +48,7 @@ abstract class HttpReader(
             .build()
 
         var build = HttpClient.create(connectionProvider)
+            .responseTimeout(timeout)
             .compress(true)
             .resolver(DefaultAddressResolverGroup.INSTANCE)
 

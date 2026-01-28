@@ -11,6 +11,7 @@ import io.micrometer.core.instrument.Tag
 import io.micrometer.core.instrument.Timer
 import org.slf4j.LoggerFactory
 import reactor.core.scheduler.Scheduler
+import java.time.Duration
 
 class BasicHttpFactory(
     private val url: String,
@@ -24,8 +25,8 @@ class BasicHttpFactory(
 ) : HttpFactory {
     private val log = LoggerFactory.getLogger(this::class.java)
 
-    override fun create(id: String?, chain: Chain): HttpReader {
-        log.info("Creating http pool for {} with maxConnections {} and queueSize {}", url, maxConnections, queueSize)
+    override fun create(id: String?, chain: Chain, timeout: Duration): HttpReader {
+        log.info("Creating http pool for {} with maxConnections {}, queueSize {} and timeout {}s", url, maxConnections, queueSize, timeout.seconds)
 
         val metricsTags = listOf(
             // "unknown" is not supposed to happen
@@ -47,8 +48,8 @@ class BasicHttpFactory(
         )
 
         if (chain.type.apiType == ApiType.REST) {
-            return RestHttpReader(url, maxConnections, queueSize, metrics, httpScheduler, chain, basicAuth, tls, customHeaders)
+            return RestHttpReader(url, maxConnections, queueSize, metrics, httpScheduler, chain, basicAuth, tls, customHeaders, timeout)
         }
-        return JsonRpcHttpReader(url, maxConnections, queueSize, metrics, httpScheduler, basicAuth, tls, customHeaders)
+        return JsonRpcHttpReader(url, maxConnections, queueSize, metrics, httpScheduler, basicAuth, tls, customHeaders, timeout)
     }
 }

@@ -43,7 +43,7 @@ class BitcoinUpstreamCreator(
             log.warn("Upstream doesn't have API configuration")
             return UpstreamCreationData.default()
         }
-        val directApi = httpFactory.create(config.id, chain)
+        val directApi = httpFactory.create(config.id, chain, options.timeout)
         val esplora = conn.esplora?.let { endpoint ->
             val tls = endpoint.tls?.let { tls ->
                 tls.ca?.let { ca ->

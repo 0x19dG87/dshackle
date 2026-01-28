@@ -70,7 +70,7 @@ open class GenericConnectorFactory(
         }
         return GenericRpcConnector(
             connectorType,
-            httpFactory.create(upstream.getId(), chain),
+            httpFactory.create(upstream.getId(), chain, upstream.getOptions().timeout),
             wsFactory,
             upstream,
             forkChoice,
