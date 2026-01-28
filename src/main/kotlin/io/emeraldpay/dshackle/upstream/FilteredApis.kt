@@ -93,6 +93,7 @@ class FilteredApis(
     }.let {
         startFrom(it, pos)
     }.sortedWith(sort.comparator)
+    private val fallbackUpstreams: List<Upstream>
     private val standardWithFallback: List<Upstream>
 
     private val counter: AtomicInteger = AtomicInteger(0)
@@ -100,9 +101,11 @@ class FilteredApis(
     private var started = false
     private val control = Sinks.many().unicast().onBackpressureBuffer<Boolean>()
     private var upstreamsMatchesResponse: UpstreamsMatchesResponse? = UpstreamsMatchesResponse()
+    // Track upstreams that have been tried to prioritize untried ones in retries
+    private val triedUpstreams = mutableSetOf<String>()
 
     init {
-        val fallbackUpstreams = allUpstreams.filter {
+        fallbackUpstreams = allUpstreams.filter {
             it.getRole() == UpstreamsConfig.UpstreamRole.FALLBACK
         }.let {
             startFrom(it, pos)
@@ -143,16 +146,20 @@ class FilteredApis(
     }
 
     override fun subscribe(subscriber: Subscriber<in Upstream>) {
-        // initially try only standard upstreams
+        // Phase 1: try PRIMARY upstreams
         val first = Flux.fromIterable(primaryUpstreams.sortedBy { it.getStatus().grpcId })
+        // Phase 2: try SECONDARY upstreams
         val second = Flux.fromIterable(secondaryUpstreams.sortedBy { it.getStatus().grpcId })
-        // if all failed, try both standard and fallback upstreams, repeating in cycle
+        // Phase 3: try FALLBACK upstreams (before any retries)
+        val third = Flux.fromIterable(fallbackUpstreams.sortedBy { it.getStatus().grpcId })
+        // Phase 4: retries - try all upstreams again, but filter will skip already-tried ones
+        // until all unique upstreams have been tried at least once
         val retries = (0 until this.retries).map {
             Flux.fromIterable(standardWithFallback.sortedBy { up -> up.getStatus().grpcId })
         }.let { Flux.concat(it) }
 
-        val size = primaryUpstreams.size + secondaryUpstreams.size + standardWithFallback.size * this.retries
-        var result = Flux.concat(first, second, retries).take(size.toLong(), false)
+        val size = primaryUpstreams.size + secondaryUpstreams.size + fallbackUpstreams.size + standardWithFallback.size * this.retries
+        var result = Flux.concat(first, second, third, retries).take(size.toLong(), false)
 
         if (Global.metricsExtended) {
             var count = 0
@@ -161,12 +168,29 @@ class FilteredApis(
                 .doFinally { metrics[chain]?.tried?.record(count.toDouble()) }
         }
 
+        val totalUniqueUpstreams = standardWithFallback.size
+
         control.asFlux()
             .zipWith(result)
             .map { it.t2 }
             .filter { up ->
+                val upstreamId = up.getId()
+                val alreadyTried = triedUpstreams.contains(upstreamId)
+                val allUpstreamsTried = triedUpstreams.size >= totalUniqueUpstreams
+
+                // Skip this upstream if:
+                // - It was already tried AND
+                // - There are still untried upstreams available
+                if (alreadyTried && !allUpstreamsTried) {
+                    this.request(1)
+                    return@filter false
+                }
+
+                // Mark as tried before checking matcher
+                triedUpstreams.add(upstreamId)
+
                 val matchesResponse = internalMatcher.matchesWithCause(up)
-                processMatchesResponse(up.getId(), matchesResponse)
+                processMatchesResponse(upstreamId, matchesResponse)
                 matchesResponse.matched()
                     .also {
                         if (!it) {
