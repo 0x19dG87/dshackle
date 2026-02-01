@@ -15,6 +15,7 @@
  */
 package io.emeraldpay.dshackle.cache
 
+import io.emeraldpay.dshackle.Chain
 import io.emeraldpay.dshackle.Global
 import io.emeraldpay.dshackle.data.BlockContainer
 import io.emeraldpay.dshackle.data.BlockId
@@ -41,6 +42,7 @@ open class Caches(
     private val redisReceipts: ReceiptRedisCache?,
     private val redisHeightByHashCache: HeightByHashRedisCache?,
     private val cacheEnabled: Boolean,
+    private val chain: Chain = Chain.UNSPECIFIED,
 ) {
 
     companion object {
@@ -62,24 +64,57 @@ open class Caches(
     private val blocksByHash: Reader<BlockId, BlockContainer>
     private val txsByHash: Reader<TxId, TxContainer>
     private val receiptByHash: Reader<TxId, ByteArray>
+    private val heightByNumber: Reader<Long, BlockId>
 
     private var head: Head? = null
 
     init {
-        blocksByHash = if (redisBlocksByHash == null) {
+        val chainCode = chain.chainCode
+        val baseBlocksByHash = if (redisBlocksByHash == null) {
             memBlocksByHash
         } else {
             CompoundReader(memBlocksByHash, redisBlocksByHash)
         }
-        txsByHash = if (redisTxsByHash == null) {
+        blocksByHash = MetricsTrackingReader(baseBlocksByHash, "blocks", chainCode)
+
+        val baseTxsByHash = if (redisTxsByHash == null) {
             memTxsByHash
         } else {
             CompoundReader(memTxsByHash, redisTxsByHash)
         }
-        receiptByHash = if (redisReceipts == null) {
+        txsByHash = MetricsTrackingReader(baseTxsByHash, "tx", chainCode)
+
+        val baseReceiptByHash = if (redisReceipts == null) {
             memReceipts
         } else {
             CompoundReader(memReceipts, redisReceipts)
+        }
+        receiptByHash = MetricsTrackingReader(baseReceiptByHash, "receipts", chainCode)
+
+        heightByNumber = MetricsTrackingReader(blocksByHeight, "height", chainCode)
+    }
+
+    /**
+     * Wrapper reader that tracks cache hits and misses for metrics.
+     */
+    private class MetricsTrackingReader<K, V : Any>(
+        private val delegate: Reader<K, V>,
+        private val cacheType: String,
+        private val chainCode: String,
+    ) : Reader<K, V> {
+        override fun read(key: K): Mono<V> {
+            return delegate.read(key)
+                .doOnNext {
+                    // Record hit when we get a value
+                    CacheMetrics.recordHit(cacheType, chainCode)
+                }
+                .switchIfEmpty(
+                    Mono.defer {
+                        // Record miss when the result is empty
+                        CacheMetrics.recordMiss(cacheType, chainCode)
+                        Mono.empty()
+                    },
+                )
         }
     }
 
@@ -192,11 +227,11 @@ open class Caches(
     }
 
     fun getBlockHashByHeight(): Reader<Long, BlockId> {
-        return blocksByHeight
+        return heightByNumber
     }
 
     fun getBlocksByHeight(): Reader<Long, BlockContainer> {
-        return BlockByHeight(blocksByHeight, blocksByHash)
+        return BlockByHeight(heightByNumber, blocksByHash)
     }
 
     fun getTxByHash(): Reader<TxId, TxContainer> {
@@ -237,6 +272,12 @@ open class Caches(
         private var redisReceiptCache: ReceiptRedisCache? = null
         private var redisHeightByHashCache: HeightByHashRedisCache? = null
         private var cacheEnabled: Boolean = true
+        private var chain: Chain = Chain.UNSPECIFIED
+
+        fun setChain(chain: Chain): Builder {
+            this.chain = chain
+            return this
+        }
 
         fun setBlockByHash(cache: BlocksMemCache): Builder {
             blocksByHash = cache
@@ -298,7 +339,7 @@ open class Caches(
             }
             return Caches(
                 blocksByHash!!, blocksByHeight!!, txsByHash!!, receipts!!,
-                redisBlocksByHash, redisTxsByHash, redisReceiptCache, redisHeightByHashCache, cacheEnabled,
+                redisBlocksByHash, redisTxsByHash, redisReceiptCache, redisHeightByHashCache, cacheEnabled, chain,
             )
         }
     }

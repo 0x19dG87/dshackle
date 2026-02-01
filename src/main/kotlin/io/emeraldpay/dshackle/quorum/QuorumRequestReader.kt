@@ -17,6 +17,7 @@ package io.emeraldpay.dshackle.quorum
 
 import io.emeraldpay.dshackle.Global
 import io.emeraldpay.dshackle.commons.SPAN_REQUEST_API_TYPE
+import io.emeraldpay.dshackle.monitoring.UpstreamMetrics
 import io.emeraldpay.dshackle.commons.SPAN_REQUEST_UPSTREAM_ID
 import io.emeraldpay.dshackle.reader.RequestReader
 import io.emeraldpay.dshackle.upstream.ApiSource
@@ -49,6 +50,9 @@ class QuorumRequestReader(
     signer: ResponseSigner?,
 ) : RequestReader(signer) {
     private val errorHandler = UpstreamErrorHandler
+    // Track the last failed upstream for failover metrics
+    @Volatile
+    private var lastFailedUpstream: Upstream? = null
 
     companion object {
         private val log = LoggerFactory.getLogger(QuorumRequestReader::class.java)
@@ -146,6 +150,25 @@ class QuorumRequestReader(
             return Mono.empty()
         }
 
+        // Record failover metric if there was a previous failure
+        lastFailedUpstream?.let { failed ->
+            UpstreamMetrics.recordFailover(
+                api.getChain().chainCode,
+                failed.getId(),
+                api.getId(),
+                key.method,
+            )
+            lastFailedUpstream = null
+        }
+
+        // Record upstream selection metric
+        UpstreamMetrics.recordSelection(
+            api.getChain().chainCode,
+            api.getId(),
+            api.getRole().name.lowercase(),
+            key.method,
+        )
+
         val apiReader = api.getIngressReader()
         val spanParams = mapOf(
             SPAN_REQUEST_API_TYPE to apiReader.javaClass.name,
@@ -199,6 +222,13 @@ class QuorumRequestReader(
                 // it may use the error message or other details
                 //
                 val cleanErr: ChainException = getError(key, err)
+                // Record upstream failure metric with method and error code
+                UpstreamMetrics.recordFailure(
+                    api.getChain().chainCode,
+                    api.getId(),
+                    key.method,
+                    cleanErr.error.code,
+                )
                 quorum.record(cleanErr, null, api)
                 // Report failure to skip other upstreams from the same provider
                 apiControl.reportFailure(api.getId())
@@ -214,6 +244,8 @@ class QuorumRequestReader(
                     apiControl.resolve()
                 } else {
                     log.debug("Received an error, trying to request next upstream")
+                    // Track the failed upstream for failover metrics
+                    lastFailedUpstream = api
                     apiControl.request(1)
                 }
                 Mono.empty()

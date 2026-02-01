@@ -90,6 +90,7 @@ open class CachesFactory(
 
     private fun initCache(chain: Chain): Caches {
         val caches = Caches.newBuilder()
+            .setChain(chain)
         val disableCacheNetworks = setOf(
             Chain.ZIRCUIT__MAINNET,
             Chain.ZIRCUIT__TESTNET,

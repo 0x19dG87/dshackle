@@ -19,6 +19,8 @@ import com.github.benmanes.caffeine.cache.Caffeine
 import io.emeraldpay.dshackle.upstream.rpcclient.CallParams
 import io.emeraldpay.dshackle.upstream.rpcclient.ListParams
 import io.emeraldpay.dshackle.upstream.rpcclient.ObjectParams
+import io.micrometer.core.instrument.Counter
+import io.micrometer.core.instrument.Metrics
 import java.time.Duration
 
 /**
@@ -32,6 +34,14 @@ object BlockNotFoundCache {
         .expireAfterWrite(Duration.ofSeconds(5))
         .build<String, Boolean>()
 
+    private val cacheHits: Counter = Counter.builder("block.not.found.cache.hits")
+        .description("Number of block-not-found cache hits (upstream skipped)")
+        .register(Metrics.globalRegistry)
+
+    private val cacheMisses: Counter = Counter.builder("block.not.found.cache.misses")
+        .description("Number of block-not-found cache misses (upstream checked)")
+        .register(Metrics.globalRegistry)
+
     /**
      * Record that an upstream doesn't have a specific block.
      */
@@ -43,7 +53,13 @@ object BlockNotFoundCache {
      * Check if an upstream recently reported "block not found" for a specific block.
      */
     fun hasRecentFailure(upstreamId: String, blockHash: String): Boolean {
-        return cache.getIfPresent(cacheKey(upstreamId, blockHash)) != null
+        val hasFailure = cache.getIfPresent(cacheKey(upstreamId, blockHash)) != null
+        if (hasFailure) {
+            cacheHits.increment()
+        } else {
+            cacheMisses.increment()
+        }
+        return hasFailure
     }
 
     private fun cacheKey(upstreamId: String, blockHash: String): String {
