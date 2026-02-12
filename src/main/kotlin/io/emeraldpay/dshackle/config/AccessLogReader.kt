@@ -11,7 +11,8 @@ class AccessLogReader : YamlConfigReader<AccessLogConfig>() {
                 AccessLogConfig.disabled()
             } else {
                 val includeMessages = getValueAsBool(node, "include-messages") ?: false
-                val config = AccessLogConfig(true, includeMessages)
+                val errorsOnly = getValueAsBool(node, "errors-only") ?: false
+                val config = AccessLogConfig(true, includeMessages, errorsOnly)
                 getValueAsString(node, "filename")?.let {
                     config.filename = it
                 }

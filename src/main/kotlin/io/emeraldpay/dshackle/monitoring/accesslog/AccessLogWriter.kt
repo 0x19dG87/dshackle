@@ -61,7 +61,8 @@ class AccessLogWriter(
             log.info("Access Log is disabled")
             return
         }
-        log.info("Writing Access Log to ${filename.absolutePath}")
+        val mode = if (config.errorsOnly) " (errors-only mode)" else ""
+        log.info("Writing Access Log to ${filename.absolutePath}$mode")
         scheduler.schedule(runner, START_SLEEP_MS, TimeUnit.MILLISECONDS)
 
         // propagate current config to the Event Builder, so it knows which details to include
@@ -81,11 +82,22 @@ class AccessLogWriter(
     }
 
     fun submit(event: Any) {
-        queue.add(event)
+        if (shouldLog(event)) {
+            queue.add(event)
+        }
     }
 
     fun submit(events: List<Any>) {
-        queue.addAll(events)
+        if (config.errorsOnly) {
+            events.filter { shouldLog(it) }.forEach { queue.add(it) }
+        } else {
+            queue.addAll(events)
+        }
+    }
+
+    private fun shouldLog(event: Any): Boolean {
+        if (!config.errorsOnly) return true
+        return event is Events.NativeCall && !event.succeed
     }
 
     fun logError(m: () -> Unit) {

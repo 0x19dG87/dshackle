@@ -20,6 +20,19 @@ accessLog:
 
 `filename` is optional, and the default value is `access_log.jsonl` (i.e., in the current directory).
 
+To log only failed requests (useful for debugging RPC errors), add `errors-only: true`:
+
+[source,yaml]
+----
+accessLog:
+  enabled: true
+  errors-only: true
+  include-messages: true
+  filename: /var/log/dshackle/access_log.jsonl
+----
+
+When `errors-only` is enabled, only failed `NativeCall` events are logged; all successful calls and other event types are dropped.
+
 Since a single request may contain multiple replies (ex., a batch call, or subscribe to the head blocks) the Dshackle logging is based on replies.
 The access log file contains details per each response send from the server, and each of them refers to original request details.
 

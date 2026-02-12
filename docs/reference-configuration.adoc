@@ -451,6 +451,7 @@ For WebSocket it's `wss` / `ws`, accordingly.
 ----
 accessLog:
   enabled: true
+  errors-only: true
   filename: /var/log/dshackle/access_log.jsonl
 ----
 
@@ -468,6 +469,12 @@ accessLog:
 | Include request params and response result/error (i.e., a JSON) in access log.
 It's an expensive operation, use it for debugging only.
 Note that for errors it provides only error message, not the error response itself.
+
+| `errors-only`
+| `false`
+| When enabled, only failed `NativeCall` events (i.e., `succeed == false`) are logged.
+All other event types and successful calls are dropped.
+This is useful for debugging RPC errors without the noise of successful requests.
 
 | `filename`
 | `access_log.jsonl`
