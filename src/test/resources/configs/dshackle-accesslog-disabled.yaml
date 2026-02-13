@@ -1,0 +1,4 @@
+version: v1
+
+accessLog:
+  enabled: false

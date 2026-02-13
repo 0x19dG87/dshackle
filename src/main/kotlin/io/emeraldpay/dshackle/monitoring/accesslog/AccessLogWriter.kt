@@ -15,7 +15,9 @@
  */
 package io.emeraldpay.dshackle.monitoring.accesslog
 
+import io.emeraldpay.dshackle.Chain
 import io.emeraldpay.dshackle.Global
+import io.emeraldpay.dshackle.config.AccessLogConfig
 import io.emeraldpay.dshackle.config.MainConfig
 import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
@@ -32,7 +34,7 @@ import java.util.concurrent.TimeUnit
 
 @Repository
 class AccessLogWriter(
-    @Autowired mainConfig: MainConfig,
+    @Autowired private val mainConfig: MainConfig,
 ) {
 
     companion object {
@@ -44,15 +46,28 @@ class AccessLogWriter(
     }
 
     private val config = mainConfig.accessLogConfig
-    private val filename = File(config.filename)
     private val scheduler = Executors.newSingleThreadScheduledExecutor()
-
-    private val queue = ConcurrentLinkedQueue<Any>()
     private val objectMapper = Global.objectMapper
     private var lastErrorAt: Instant = Instant.ofEpochMilli(0)
 
+    internal val targets = ArrayList<LogTarget>()
+
     private val runner = Runnable {
         flushRunner()
+    }
+
+    internal class LogTarget(
+        val file: File,
+        val errorsOnly: Boolean,
+        val matcher: (Any) -> Boolean,
+    ) {
+        val queue = ConcurrentLinkedQueue<Any>()
+
+        fun shouldLog(event: Any): Boolean {
+            if (!matcher(event)) return false
+            if (!errorsOnly) return true
+            return event is Events.NativeCall && !event.succeed
+        }
     }
 
     @PostConstruct
@@ -61,12 +76,61 @@ class AccessLogWriter(
             log.info("Access Log is disabled")
             return
         }
-        val mode = if (config.errorsOnly) " (errors-only mode)" else ""
-        log.info("Writing Access Log to ${filename.absolutePath}$mode")
+
+        // Global target
+        config.filename?.let { filename ->
+            val file = File(filename)
+            val mode = if (config.errorsOnly) " (errors-only mode)" else ""
+            log.info("Writing Access Log to ${file.absolutePath}$mode")
+            targets.add(LogTarget(file, config.errorsOnly) { true })
+        }
+
+        // Per-chain targets
+        config.chainTargets.filter { it.enabled }.forEach { chainTarget ->
+            val file = File(chainTarget.filename)
+            val chain = chainTarget.chain
+            log.info("Writing Access Log for chain $chain to ${file.absolutePath}")
+            targets.add(
+                LogTarget(file, chainTarget.errorsOnly) { event ->
+                    event is Events.ChainBase && event.blockchain == chain
+                },
+            )
+        }
+
+        // Per-upstream targets
+        mainConfig.upstreams?.upstreams?.forEach { upstream ->
+            val accessLog = upstream.accessLog ?: return@forEach
+            if (!accessLog.enabled) return@forEach
+            val upstreamId = upstream.id ?: return@forEach
+            val file = File(accessLog.filename)
+            log.info("Writing Access Log for upstream $upstreamId to ${file.absolutePath}")
+            targets.add(
+                LogTarget(file, accessLog.errorsOnly) { event ->
+                    event is Events.NativeCall && event.upstreamId?.split(",")?.any { it.trim() == upstreamId } == true
+                },
+            )
+        }
+
+        if (targets.isEmpty()) {
+            log.info("Access Log is enabled but no targets are configured")
+            return
+        }
+
         scheduler.schedule(runner, START_SLEEP_MS, TimeUnit.MILLISECONDS)
 
-        // propagate current config to the Event Builder, so it knows which details to include
-        EventsBuilder.accessLogConfig = config
+        // Compute effective includeMessages: true if global or any enabled target needs it
+        val anyTargetNeedsMessages = config.chainTargets.any { it.enabled && it.includeMessages } ||
+            (mainConfig.upstreams?.upstreams?.any { it.accessLog?.let { al -> al.enabled && al.includeMessages } == true } ?: false)
+        val effectiveIncludeMessages = config.includeMessages || anyTargetNeedsMessages
+        if (effectiveIncludeMessages != config.includeMessages) {
+            // Create a new config with includeMessages=true so EventsBuilder captures payloads
+            val effectiveConfig = AccessLogConfig(config.enabled, true, config.errorsOnly)
+            effectiveConfig.filename = config.filename
+            effectiveConfig.chainTargets = config.chainTargets
+            EventsBuilder.accessLogConfig = effectiveConfig
+        } else {
+            EventsBuilder.accessLogConfig = config
+        }
     }
 
     private fun flushRunner() {
@@ -82,22 +146,17 @@ class AccessLogWriter(
     }
 
     fun submit(event: Any) {
-        if (shouldLog(event)) {
-            queue.add(event)
+        targets.forEach { target ->
+            if (target.shouldLog(event)) {
+                target.queue.add(event)
+            }
         }
     }
 
     fun submit(events: List<Any>) {
-        if (config.errorsOnly) {
-            events.filter { shouldLog(it) }.forEach { queue.add(it) }
-        } else {
-            queue.addAll(events)
+        events.forEach { event ->
+            submit(event)
         }
-    }
-
-    private fun shouldLog(event: Any): Boolean {
-        if (!config.errorsOnly) return true
-        return event is Events.NativeCall && !event.succeed
     }
 
     fun logError(m: () -> Unit) {
@@ -109,19 +168,27 @@ class AccessLogWriter(
     }
 
     protected fun flush() {
-        if (!filename.exists()) {
-            if (!filename.createNewFile()) {
+        targets.forEach { target ->
+            flushTarget(target)
+        }
+    }
+
+    private fun flushTarget(target: LogTarget) {
+        if (target.queue.isEmpty()) return
+        if (!target.file.exists()) {
+            target.file.parentFile?.mkdirs()
+            if (!target.file.createNewFile()) {
                 logError {
-                    log.error("Cannot create Access Log file at ${filename.absolutePath}")
+                    log.error("Cannot create Access Log file at ${target.file.absolutePath}")
                 }
                 return
             }
         }
-        BufferedOutputStream(FileOutputStream(filename, true)).use { wrt ->
+        BufferedOutputStream(FileOutputStream(target.file, true)).use { wrt ->
             var limit = WRITE_BATCH_LIMIT
             while (limit > 0) {
                 limit -= 1
-                val next = queue.poll() ?: return
+                val next = target.queue.poll() ?: return
                 val bytes: ByteArray? = try {
                     objectMapper.writeValueAsBytes(next)
                 } catch (t: Throwable) {

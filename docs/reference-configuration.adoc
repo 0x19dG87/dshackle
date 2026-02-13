@@ -453,6 +453,14 @@ accessLog:
   enabled: true
   errors-only: true
   filename: /var/log/dshackle/access_log.jsonl
+  chains:
+    - chain: ethereum
+      enabled: false
+      filename: /var/log/dshackle/ethereum.jsonl
+      include-messages: true
+    - chain: bitcoin
+      enabled: false
+      filename: /var/log/dshackle/bitcoin.jsonl
 ----
 
 .Access Log config
@@ -462,7 +470,7 @@ accessLog:
 
 | `enabled`
 | `false`
-| Enable/Disable Access logging
+| Master switch for the access logging system. Required for any logging to occur.
 
 | `include-messages`
 | `false`
@@ -477,8 +485,76 @@ All other event types and successful calls are dropped.
 This is useful for debugging RPC errors without the noise of successful requests.
 
 | `filename`
-| `access_log.jsonl`
-| Path to the access log file
+| _(optional)_
+| Path to the global access log file. Omit to skip global logging (useful when only per-chain or per-upstream logs are needed).
+
+| `chains`
+|
+| List of per-chain log targets. Each entry routes events for a specific blockchain to a separate file.
+
+| `chains[].chain`
+|
+| Blockchain id (e.g., `ethereum`, `bitcoin`, `optimism`)
+
+| `chains[].enabled`
+| `true`
+| Enable/disable this chain target. Allows pre-configuring targets that can be toggled on for debugging.
+
+| `chains[].filename`
+|
+| Path to the chain-specific log file
+
+| `chains[].include-messages`
+| _(inherits global)_
+| Override global `include-messages` for this chain target
+
+| `chains[].errors-only`
+| _(inherits global)_
+| Override global `errors-only` for this chain target
+
+|===
+
+==== Per-Upstream Access Log
+
+Each upstream can also have its own access log, configured alongside other upstream settings like `options`.
+Only `NativeCall` events with a matching `upstreamId` are routed to upstream-specific logs.
+
+[source,yaml]
+----
+cluster:
+  upstreams:
+    - id: infura-opt
+      chain: optimism
+      access-log:
+        enabled: false
+        filename: /var/log/dshackle/infura_opt.jsonl
+        include-messages: true
+      connection:
+        generic:
+          rpc:
+            url: "https://..."
+----
+
+.Upstream Access Log config
+[cols="2a,3a,7"]
+|===
+| Option | Default | Description
+
+| `access-log.enabled`
+| `true`
+| Enable/disable this upstream log target
+
+| `access-log.filename`
+|
+| Path to the upstream-specific log file (required)
+
+| `access-log.include-messages`
+| `false`
+| Include request/response payloads
+
+| `access-log.errors-only`
+| `false`
+| Log only failed NativeCall events
 
 |===
 
@@ -709,6 +785,10 @@ See xref:09-quorum-and-selectors.adoc[Quorum and Selectors]
 | `options`
 |
 | Other configuration options. See <<general-options>>
+
+| `access-log`
+| no
+| Per-upstream access log configuration. See <<accessLog>>
 
 | `methods`
 | no

@@ -36,8 +36,8 @@ group = 'io.emeraldpay.dshackle'
 version = getVersion()
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
+    sourceCompatibility = JavaVersion.VERSION_24
+    targetCompatibility = JavaVersion.VERSION_24
 }
 
 repositories {
@@ -123,10 +123,10 @@ dependencies {
 }
 
 compileKotlin {
-    compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_24)
 }
 compileTestKotlin {
-    compilerOptions.jvmTarget.set(JvmTarget.JVM_21)
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_24)
 }
 
 test {
@@ -296,7 +296,7 @@ jacocoTestReport {
     }
 }
 jacoco {
-    toolVersion = "0.8.9"
+    toolVersion = "0.8.13"
 }
 
 static def getVersion() {

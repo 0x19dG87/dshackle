@@ -292,6 +292,7 @@ class UpstreamsConfigReader(
         upstream.methods = tryReadMethods(upNode)
         upstream.methodGroups = tryReadMethodGroups(upNode)
         upstream.additionalSettings = readAdditionalSettings(upNode)
+        upstream.accessLog = readUpstreamAccessLog(upNode)
         getValueAsBool(upNode, "enabled")?.let {
             upstream.isEnabled = it
         }
@@ -339,6 +340,21 @@ class UpstreamsConfigReader(
                     } ?: emptyMap()
                 UpstreamsConfig.AdditionalSettings(manualLowerBounds)
             }
+    }
+
+    private fun readUpstreamAccessLog(upNode: MappingNode): UpstreamsConfig.UpstreamAccessLog? {
+        return getMapping(upNode, "access-log")?.let { node ->
+            val filename = getValueAsString(node, "filename") ?: return@let null
+            val enabled = getValueAsBool(node, "enabled") ?: true
+            val includeMessages = getValueAsBool(node, "include-messages") ?: false
+            val errorsOnly = getValueAsBool(node, "errors-only") ?: false
+            UpstreamsConfig.UpstreamAccessLog(
+                enabled = enabled,
+                filename = filename,
+                includeMessages = includeMessages,
+                errorsOnly = errorsOnly,
+            )
+        }
     }
 
     private fun readManualBoundSetting(node: MappingNode): ManualBoundSetting? {

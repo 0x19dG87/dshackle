@@ -33,6 +33,53 @@ accessLog:
 
 When `errors-only` is enabled, only failed `NativeCall` events are logged; all successful calls and other event types are dropped.
 
+=== Per-Chain and Per-Upstream Logging
+
+For debugging specific chains or upstreams, you can route access log events to separate files.
+This is useful when you have heavy traffic across many chains and need to isolate events for a specific one.
+
+Per-chain logging is configured in the `accessLog` section:
+
+[source,yaml]
+----
+accessLog:
+  enabled: true
+  filename: /var/log/dshackle/access_log.jsonl
+  chains:
+    - chain: optimism
+      enabled: false
+      filename: /var/log/dshackle/optimism.jsonl
+      include-messages: true
+    - chain: ethereum
+      enabled: false
+      filename: /var/log/dshackle/ethereum.jsonl
+----
+
+Per-upstream logging is configured on each upstream definition:
+
+[source,yaml]
+----
+cluster:
+  upstreams:
+    - id: infura-opt
+      chain: optimism
+      access-log:
+        enabled: false
+        filename: /var/log/dshackle/infura_opt.jsonl
+        include-messages: true
+      connection:
+        generic:
+          rpc:
+            url: "https://..."
+----
+
+Each target has an `enabled` flag so configurations can stay in place and be toggled on/off as needed for debugging.
+The global `filename` is optional -- omit it to avoid writing a global log when only per-chain or per-upstream logs are needed.
+`include-messages` and `errors-only` on targets default to the global values when not specified.
+
+NOTE: The `accessLog.enabled: true` master switch must be set for any logging to occur.
+Per-upstream logs only match `NativeCall` events where the response includes the upstream's ID.
+
 Since a single request may contain multiple replies (ex., a batch call, or subscribe to the head blocks) the Dshackle logging is based on replies.
 The access log file contains details per each response send from the server, and each of them refers to original request details.
 

@@ -45,6 +45,7 @@ data class UpstreamsConfig(
         var role: UpstreamRole = UpstreamRole.PRIMARY,
         var customHeaders: Map<String, String> = emptyMap(),
         var additionalSettings: AdditionalSettings? = null,
+        var accessLog: UpstreamAccessLog? = null,
     ) {
 
         @Suppress("UNCHECKED_CAST")
@@ -190,6 +191,13 @@ data class UpstreamsConfig(
             }
         }
     }
+
+    data class UpstreamAccessLog(
+        val enabled: Boolean = true,
+        val filename: String,
+        val includeMessages: Boolean = false,
+        val errorsOnly: Boolean = false,
+    )
 
     data class AdditionalSettings(
         val manualLowerBounds: Map<LowerBoundType, ManualBoundSetting>,

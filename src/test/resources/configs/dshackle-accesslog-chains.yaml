@@ -1,0 +1,15 @@
+version: v1
+
+accessLog:
+  enabled: true
+  include-messages: false
+  filename: /var/log/dshackle/access_log.jsonl
+  chains:
+    - chain: ethereum
+      enabled: true
+      filename: /var/log/dshackle/ethereum.jsonl
+      include-messages: true
+    - chain: bitcoin
+      enabled: false
+      filename: /var/log/dshackle/bitcoin.jsonl
+      errors-only: true

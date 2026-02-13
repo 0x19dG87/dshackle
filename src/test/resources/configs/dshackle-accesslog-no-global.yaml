@@ -1,0 +1,7 @@
+version: v1
+
+accessLog:
+  enabled: true
+  chains:
+    - chain: ethereum
+      filename: /var/log/dshackle/ethereum.jsonl

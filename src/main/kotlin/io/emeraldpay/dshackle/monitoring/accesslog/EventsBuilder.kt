@@ -294,6 +294,7 @@ class EventsBuilder {
                 errorMessage = if (accessLogConfig.includeMessages) msg.errorMessage else null,
                 signature = Hex.encodeHexString(msg.signature.signature.toByteArray()),
                 nonce = msg.signature.nonce,
+                upstreamId = msg.upstreamId.ifBlank { null },
             )
         }
 
@@ -321,6 +322,7 @@ class EventsBuilder {
                 } else {
                     null
                 },
+                upstreamId = reply.upstreamSettingsData.takeIf { it.isNotEmpty() }?.joinToString(",") { it.id },
             )
         }
     }

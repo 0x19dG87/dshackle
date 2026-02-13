@@ -114,6 +114,7 @@ class Events {
         val errorMessage: String? = null,
         val nonce: Long? = null,
         val signature: String? = null,
+        val upstreamId: String? = null,
     ) : ChainBase(blockchain, "NativeCall", id, channel)
 
     @JsonInclude(JsonInclude.Include.NON_NULL)
