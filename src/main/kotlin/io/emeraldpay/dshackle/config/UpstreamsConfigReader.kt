@@ -348,11 +348,13 @@ class UpstreamsConfigReader(
             val enabled = getValueAsBool(node, "enabled") ?: true
             val includeMessages = getValueAsBool(node, "include-messages") ?: false
             val errorsOnly = getValueAsBool(node, "errors-only") ?: false
+            val fileSize = getValueAsString(node, "filesize")?.let { AccessLogReader.parseFileSize(it) }
             UpstreamsConfig.UpstreamAccessLog(
                 enabled = enabled,
                 filename = filename,
                 includeMessages = includeMessages,
                 errorsOnly = errorsOnly,
+                fileSize = fileSize,
             )
         }
     }

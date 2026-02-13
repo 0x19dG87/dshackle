@@ -1,0 +1,14 @@
+version: v1
+
+accessLog:
+  enabled: true
+  filename: /var/log/dshackle/access_log.jsonl
+  filesize: 100mb
+  chains:
+    - chain: ethereum
+      enabled: true
+      filename: /var/log/dshackle/ethereum.jsonl
+      filesize: 50mb
+    - chain: bitcoin
+      enabled: true
+      filename: /var/log/dshackle/bitcoin.jsonl

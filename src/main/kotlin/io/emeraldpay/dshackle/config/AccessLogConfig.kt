@@ -9,6 +9,7 @@ class AccessLogConfig(
 ) {
 
     var filename: String? = "./access_log.jsonl"
+    var fileSize: Long? = null
     var chainTargets: List<ChainLogTarget> = emptyList()
 
     data class ChainLogTarget(
@@ -17,6 +18,7 @@ class AccessLogConfig(
         val filename: String,
         val includeMessages: Boolean,
         val errorsOnly: Boolean,
+        val fileSize: Long?,
     )
 
     companion object {

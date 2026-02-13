@@ -9,6 +9,21 @@ class AccessLogReader : YamlConfigReader<AccessLogConfig>() {
 
     companion object {
         private val log = LoggerFactory.getLogger(AccessLogReader::class.java)
+        private val FILE_SIZE_RE = Regex("^(\\d+)\\s*(b|kb|k|mb|m|gb|g)?$", RegexOption.IGNORE_CASE)
+
+        @JvmStatic
+        fun parseFileSize(value: String): Long {
+            val m = FILE_SIZE_RE.find(value.trim())
+                ?: throw IllegalArgumentException("Not a valid file size: $value. Examples: '100mb', '1gb', '500kb'")
+            val base = m.groups[1]!!.value.toLong()
+            val multiplier = when (m.groups[2]?.value?.lowercase()) {
+                "k", "kb" -> 1024L
+                "m", "mb" -> 1024L * 1024
+                "g", "gb" -> 1024L * 1024 * 1024
+                else -> 1L
+            }
+            return base * multiplier
+        }
     }
 
     override fun read(input: MappingNode?): AccessLogConfig {
@@ -19,9 +34,11 @@ class AccessLogReader : YamlConfigReader<AccessLogConfig>() {
             } else {
                 val includeMessages = getValueAsBool(node, "include-messages") ?: false
                 val errorsOnly = getValueAsBool(node, "errors-only") ?: false
+                val globalFileSize = getValueAsString(node, "filesize")?.let { parseFileSize(it) }
                 val config = AccessLogConfig(true, includeMessages, errorsOnly)
                 config.filename = getValueAsString(node, "filename")
-                config.chainTargets = readChainTargets(node, includeMessages, errorsOnly)
+                config.fileSize = globalFileSize
+                config.chainTargets = readChainTargets(node, includeMessages, errorsOnly, globalFileSize)
                 config
             }
         } ?: AccessLogConfig.default()
@@ -31,6 +48,7 @@ class AccessLogReader : YamlConfigReader<AccessLogConfig>() {
         node: MappingNode,
         globalIncludeMessages: Boolean,
         globalErrorsOnly: Boolean,
+        globalFileSize: Long?,
     ): List<AccessLogConfig.ChainLogTarget> {
         return getList<MappingNode>(node, "chains")?.value?.mapNotNull { conf ->
             val chainName = getValueAsString(conf, "chain")
@@ -51,12 +69,14 @@ class AccessLogReader : YamlConfigReader<AccessLogConfig>() {
             val enabled = getValueAsBool(conf, "enabled") ?: true
             val includeMessages = getValueAsBool(conf, "include-messages") ?: globalIncludeMessages
             val errorsOnly = getValueAsBool(conf, "errors-only") ?: globalErrorsOnly
+            val fileSize = getValueAsString(conf, "filesize")?.let { parseFileSize(it) } ?: globalFileSize
             AccessLogConfig.ChainLogTarget(
                 enabled = enabled,
                 chain = chain,
                 filename = filename,
                 includeMessages = includeMessages,
                 errorsOnly = errorsOnly,
+                fileSize = fileSize,
             )
         } ?: emptyList()
     }

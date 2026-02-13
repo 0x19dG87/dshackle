@@ -99,4 +99,44 @@ class AccessLogReaderSpec extends Specification {
         // Ethereum chain target has no explicit errors-only, should default to global (false)
         !act.chainTargets[0].errorsOnly
     }
+
+    def "Read config with file-size"() {
+        setup:
+        def config = this.class.getClassLoader().getResourceAsStream("configs/dshackle-accesslog-filesize.yaml")
+        when:
+        def act = reader.read(config)
+
+        then:
+        act.enabled
+        act.fileSize == 100L * 1024 * 1024
+
+        // Ethereum has explicit file-size
+        act.chainTargets[0].fileSize == 50L * 1024 * 1024
+
+        // Bitcoin inherits global file-size
+        act.chainTargets[1].fileSize == 100L * 1024 * 1024
+    }
+
+    def "file-size is null when not specified"() {
+        setup:
+        def config = this.class.getClassLoader().getResourceAsStream("configs/dshackle-accesslog-legacy.yaml")
+        when:
+        def act = reader.read(config)
+
+        then:
+        act.fileSize == null
+    }
+
+    def "parseFileSize handles various formats"() {
+        expect:
+        AccessLogReader.parseFileSize("100") == 100L
+        AccessLogReader.parseFileSize("100b") == 100L
+        AccessLogReader.parseFileSize("100kb") == 100L * 1024
+        AccessLogReader.parseFileSize("100k") == 100L * 1024
+        AccessLogReader.parseFileSize("100mb") == 100L * 1024 * 1024
+        AccessLogReader.parseFileSize("100m") == 100L * 1024 * 1024
+        AccessLogReader.parseFileSize("1gb") == 1024L * 1024 * 1024
+        AccessLogReader.parseFileSize("1g") == 1024L * 1024 * 1024
+        AccessLogReader.parseFileSize("100MB") == 100L * 1024 * 1024
+    }
 }

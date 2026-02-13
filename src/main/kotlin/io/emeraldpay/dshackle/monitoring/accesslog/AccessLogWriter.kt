@@ -23,11 +23,16 @@ import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Repository
+import com.fasterxml.jackson.databind.node.ObjectNode
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -43,6 +48,7 @@ class AccessLogWriter(
         private const val FLUSH_SLEEP_MS = 500L
         private const val START_SLEEP_MS = 2000L
         private val NL = "\n".toByteArray()
+        private val ROTATE_TS_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss").withZone(ZoneId.of("UTC"))
     }
 
     private val config = mainConfig.accessLogConfig
@@ -59,6 +65,8 @@ class AccessLogWriter(
     internal class LogTarget(
         val file: File,
         val errorsOnly: Boolean,
+        val includeMessages: Boolean,
+        val maxFileSize: Long?,
         val matcher: (Any) -> Boolean,
     ) {
         val queue = ConcurrentLinkedQueue<Any>()
@@ -82,7 +90,7 @@ class AccessLogWriter(
             val file = File(filename)
             val mode = if (config.errorsOnly) " (errors-only mode)" else ""
             log.info("Writing Access Log to ${file.absolutePath}$mode")
-            targets.add(LogTarget(file, config.errorsOnly) { true })
+            targets.add(LogTarget(file, config.errorsOnly, config.includeMessages, config.fileSize) { true })
         }
 
         // Per-chain targets
@@ -91,7 +99,7 @@ class AccessLogWriter(
             val chain = chainTarget.chain
             log.info("Writing Access Log for chain $chain to ${file.absolutePath}")
             targets.add(
-                LogTarget(file, chainTarget.errorsOnly) { event ->
+                LogTarget(file, chainTarget.errorsOnly, chainTarget.includeMessages, chainTarget.fileSize) { event ->
                     event is Events.ChainBase && event.blockchain == chain
                 },
             )
@@ -105,7 +113,7 @@ class AccessLogWriter(
             val file = File(accessLog.filename)
             log.info("Writing Access Log for upstream $upstreamId to ${file.absolutePath}")
             targets.add(
-                LogTarget(file, accessLog.errorsOnly) { event ->
+                LogTarget(file, accessLog.errorsOnly, accessLog.includeMessages, accessLog.fileSize) { event ->
                     event is Events.NativeCall && event.upstreamId?.split(",")?.any { it.trim() == upstreamId } == true
                 },
             )
@@ -116,6 +124,7 @@ class AccessLogWriter(
             return
         }
 
+        rotateExistingLogs()
         scheduler.schedule(runner, START_SLEEP_MS, TimeUnit.MILLISECONDS)
 
         // Compute effective includeMessages: true if global or any enabled target needs it
@@ -130,6 +139,35 @@ class AccessLogWriter(
             EventsBuilder.accessLogConfig = effectiveConfig
         } else {
             EventsBuilder.accessLogConfig = config
+        }
+    }
+
+    private fun rotateExistingLogs() {
+        val rotatedFiles = HashSet<String>()
+        targets.forEach { target ->
+            val path = target.file.absolutePath
+            if (target.file.exists() && target.file.length() > 0 && rotatedFiles.add(path)) {
+                rotateFile(target.file)
+            }
+        }
+    }
+
+    private fun rotateFile(file: File) {
+        val ts = ROTATE_TS_FORMAT.format(Instant.now())
+        val name = file.name
+        val dotIdx = name.lastIndexOf('.')
+        val backupName = if (dotIdx > 0) {
+            name.substring(0, dotIdx) + ".$ts" + name.substring(dotIdx)
+        } else {
+            "$name.$ts"
+        }
+        val parent = file.absoluteFile.parentFile
+        val backup = File(parent, backupName)
+        try {
+            Files.move(file.toPath(), backup.toPath(), StandardCopyOption.ATOMIC_MOVE)
+            log.info("Rotated ${file.absolutePath} -> ${backup.name}")
+        } catch (e: Exception) {
+            log.warn("Failed to rotate ${file.absolutePath} -> ${backup.absolutePath}: ${e.message}")
         }
     }
 
@@ -188,9 +226,21 @@ class AccessLogWriter(
             var limit = WRITE_BATCH_LIMIT
             while (limit > 0) {
                 limit -= 1
-                val next = target.queue.poll() ?: return
+                val next = target.queue.poll() ?: break
                 val bytes: ByteArray? = try {
-                    objectMapper.writeValueAsBytes(next)
+                    if (!target.includeMessages && next is Events.NativeCall) {
+                        val tree = objectMapper.valueToTree<ObjectNode>(next)
+                        tree.remove("responseBody")
+                        tree.remove("errorMessage")
+                        (tree.get("nativeCall") as? ObjectNode)?.remove("requestParams")
+                        objectMapper.writeValueAsBytes(tree)
+                    } else if (!target.includeMessages && next is Events.NativeSubscribe) {
+                        val tree = objectMapper.valueToTree<ObjectNode>(next)
+                        tree.remove("responseBody")
+                        objectMapper.writeValueAsBytes(tree)
+                    } else {
+                        objectMapper.writeValueAsBytes(next)
+                    }
                 } catch (t: Throwable) {
                     logError {
                         log.warn("Failed to write an access log line. ${t.message}")
@@ -202,6 +252,12 @@ class AccessLogWriter(
                     wrt.write(NL, 0, 1)
                 }
             }
+        }
+
+        // Rotate if file exceeds configured size
+        val maxSize = target.maxFileSize
+        if (maxSize != null && target.file.exists() && target.file.length() > maxSize) {
+            rotateFile(target.file)
         }
     }
 }

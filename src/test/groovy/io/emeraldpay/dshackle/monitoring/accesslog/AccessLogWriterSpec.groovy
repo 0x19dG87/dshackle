@@ -91,6 +91,20 @@ class AccessLogWriterSpec extends Specification {
         )
     }
 
+    private Events.NativeCall makeNativeCallWithMessages(Chain chain, boolean succeed, String upstreamId = null) {
+        return new Events.NativeCall(
+                chain,
+                UUID.fromString("9d8ecbf3-12fb-49cf-af9d-949a1050a000"),
+                Events.Channel.GRPC,
+                defaultRequestDetails(),
+                1, 0, null, null, null, 100L,
+                succeed, null, 256L,
+                new Events.NativeCallItemDetails("eth_call", 1, 128L, 1L, '["0x1234"]'),
+                '{"result":"0xabc"}', "some error", null, null,
+                upstreamId
+        )
+    }
+
     private AccessLogWriter createWriter(File accessLog, boolean errorsOnly) {
         MainConfig config = new MainConfig()
         config.accessLogConfig = new AccessLogConfig(true, false, errorsOnly).tap {
@@ -251,7 +265,7 @@ class AccessLogWriterSpec extends Specification {
         config.accessLogConfig = new AccessLogConfig(true, false, false).tap {
             it.filename = globalLog.absolutePath
             it.chainTargets = [
-                    new AccessLogConfig.ChainLogTarget(true, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, false, false)
+                    new AccessLogConfig.ChainLogTarget(true, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, false, false, null)
             ]
         }
         AccessLogWriter logWriter = new AccessLogWriter(config)
@@ -278,7 +292,7 @@ class AccessLogWriterSpec extends Specification {
         config.accessLogConfig = new AccessLogConfig(true, false, false).tap {
             it.filename = globalLog.absolutePath
             it.chainTargets = [
-                    new AccessLogConfig.ChainLogTarget(true, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, false, false)
+                    new AccessLogConfig.ChainLogTarget(true, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, false, false, null)
             ]
         }
         AccessLogWriter logWriter = new AccessLogWriter(config)
@@ -309,7 +323,7 @@ class AccessLogWriterSpec extends Specification {
         def upstream = new UpstreamsConfig.Upstream()
         upstream.id = "infura-opt"
         upstream.chain = "optimism"
-        upstream.accessLog = new UpstreamsConfig.UpstreamAccessLog(true, upstreamLog.absolutePath, false, false)
+        upstream.accessLog = new UpstreamsConfig.UpstreamAccessLog(true, upstreamLog.absolutePath, false, false, null)
         upstreamsConfig.upstreams = [upstream]
         config.upstreams = upstreamsConfig
 
@@ -338,7 +352,7 @@ class AccessLogWriterSpec extends Specification {
         config.accessLogConfig = new AccessLogConfig(true, false, false).tap {
             it.filename = globalLog.absolutePath
             it.chainTargets = [
-                    new AccessLogConfig.ChainLogTarget(false, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, false, false)
+                    new AccessLogConfig.ChainLogTarget(false, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, false, false, null)
             ]
         }
         AccessLogWriter logWriter = new AccessLogWriter(config)
@@ -369,7 +383,7 @@ class AccessLogWriterSpec extends Specification {
         def upstream = new UpstreamsConfig.Upstream()
         upstream.id = "infura-opt"
         upstream.chain = "optimism"
-        upstream.accessLog = new UpstreamsConfig.UpstreamAccessLog(false, upstreamLog.absolutePath, false, false)
+        upstream.accessLog = new UpstreamsConfig.UpstreamAccessLog(false, upstreamLog.absolutePath, false, false, null)
         upstreamsConfig.upstreams = [upstream]
         config.upstreams = upstreamsConfig
 
@@ -396,7 +410,7 @@ class AccessLogWriterSpec extends Specification {
         config.accessLogConfig = new AccessLogConfig(true, false, false).tap {
             it.filename = null
             it.chainTargets = [
-                    new AccessLogConfig.ChainLogTarget(true, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, false, false)
+                    new AccessLogConfig.ChainLogTarget(true, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, false, false, null)
             ]
         }
         AccessLogWriter logWriter = new AccessLogWriter(config)
@@ -433,6 +447,202 @@ class AccessLogWriterSpec extends Specification {
         act.size() == 1
     }
 
+    def "chain target with include-messages false strips message fields"() {
+        setup:
+        File dir = File.createTempDir("dshackle-test-")
+        File globalLog = new File(dir, "global.jsonl")
+        File ethLog = new File(dir, "ethereum.jsonl")
+
+        MainConfig config = new MainConfig()
+        config.accessLogConfig = new AccessLogConfig(true, true, false).tap {
+            it.filename = globalLog.absolutePath
+            it.chainTargets = [
+                    new AccessLogConfig.ChainLogTarget(true, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, false, false, null)
+            ]
+        }
+        AccessLogWriter logWriter = new AccessLogWriter(config)
+        logWriter.start()
+
+        when:
+        logWriter.submit(makeNativeCallWithMessages(Chain.ETHEREUM__MAINNET, false))
+        logWriter.flush()
+        def globalLines = globalLog.readLines()
+        def ethLines = ethLog.readLines()
+
+        then:
+        // Global target has includeMessages=true, so messages should be present
+        globalLines.size() == 1
+        with(globalLines[0]) {
+            def json = Global.objectMapper.readValue(it, Map)
+            json["responseBody"] == '{"result":"0xabc"}'
+            json["errorMessage"] == "some error"
+            json["nativeCall"]["requestParams"] == '["0x1234"]'
+        }
+
+        // Chain target has includeMessages=false, so message fields should be stripped
+        ethLines.size() == 1
+        with(ethLines[0]) {
+            def json = Global.objectMapper.readValue(it, Map)
+            !json.containsKey("responseBody")
+            !json.containsKey("errorMessage")
+            !json["nativeCall"].containsKey("requestParams")
+            // Other fields should still be present
+            json["method"] == "NativeCall"
+            json["nativeCall"]["method"] == "eth_call"
+        }
+    }
+
+    def "global include-messages false strips message fields even when chain target has them"() {
+        setup:
+        File dir = File.createTempDir("dshackle-test-")
+        File globalLog = new File(dir, "global.jsonl")
+        File ethLog = new File(dir, "ethereum.jsonl")
+
+        MainConfig config = new MainConfig()
+        config.accessLogConfig = new AccessLogConfig(true, false, false).tap {
+            it.filename = globalLog.absolutePath
+            it.chainTargets = [
+                    new AccessLogConfig.ChainLogTarget(true, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, true, false, null)
+            ]
+        }
+        AccessLogWriter logWriter = new AccessLogWriter(config)
+        logWriter.start()
+
+        when:
+        logWriter.submit(makeNativeCallWithMessages(Chain.ETHEREUM__MAINNET, false))
+        logWriter.flush()
+        def globalLines = globalLog.readLines()
+        def ethLines = ethLog.readLines()
+
+        then:
+        // Global target has includeMessages=false
+        globalLines.size() == 1
+        with(globalLines[0]) {
+            def json = Global.objectMapper.readValue(it, Map)
+            !json.containsKey("responseBody")
+            !json.containsKey("errorMessage")
+        }
+
+        // Chain target has includeMessages=true
+        ethLines.size() == 1
+        with(ethLines[0]) {
+            def json = Global.objectMapper.readValue(it, Map)
+            json["responseBody"] == '{"result":"0xabc"}'
+            json["errorMessage"] == "some error"
+            json["nativeCall"]["requestParams"] == '["0x1234"]'
+        }
+    }
+
+    def "rotates existing log file on start"() {
+        setup:
+        File dir = File.createTempDir("dshackle-test-")
+        File accessLog = new File(dir, "accesslog.jsonl")
+        // Write some pre-existing content
+        accessLog.text = '{"old":"data"}\n'
+
+        MainConfig config = new MainConfig()
+        config.accessLogConfig = new AccessLogConfig(true, false, false).tap {
+            it.filename = accessLog.absolutePath
+        }
+        AccessLogWriter logWriter = new AccessLogWriter(config)
+        logWriter.start()
+
+        when:
+        logWriter.submit(makeNativeCall(true))
+        logWriter.flush()
+
+        // Check that the original file was rotated
+        def backupFiles = dir.listFiles().findAll { it.name.startsWith("accesslog.") && it.name != "accesslog.jsonl" }
+
+        then:
+        // A backup file was created with the old content
+        backupFiles.size() == 1
+        backupFiles[0].name ==~ /accesslog\.\d{8}T\d{6}\.jsonl/
+        backupFiles[0].text.trim() == '{"old":"data"}'
+
+        // The current log file has only the new event
+        accessLog.exists()
+        def lines = accessLog.readLines()
+        lines.size() == 1
+        with(lines[0]) {
+            def json = Global.objectMapper.readValue(it, Map)
+            json["method"] == "NativeCall"
+        }
+    }
+
+    def "does not rotate empty log file on start"() {
+        setup:
+        File dir = File.createTempDir("dshackle-test-")
+        File accessLog = new File(dir, "accesslog.jsonl")
+        // Create an empty file
+        accessLog.createNewFile()
+
+        MainConfig config = new MainConfig()
+        config.accessLogConfig = new AccessLogConfig(true, false, false).tap {
+            it.filename = accessLog.absolutePath
+        }
+        AccessLogWriter logWriter = new AccessLogWriter(config)
+        logWriter.start()
+
+        when:
+        def backupFiles = dir.listFiles().findAll { it.name.startsWith("accesslog.") && it.name != "accesslog.jsonl" }
+
+        then:
+        // No backup created for empty file
+        backupFiles.size() == 0
+    }
+
+    def "does not rotate if log file does not exist"() {
+        setup:
+        File dir = File.createTempDir("dshackle-test-")
+        File accessLog = new File(dir, "accesslog.jsonl")
+
+        MainConfig config = new MainConfig()
+        config.accessLogConfig = new AccessLogConfig(true, false, false).tap {
+            it.filename = accessLog.absolutePath
+        }
+        AccessLogWriter logWriter = new AccessLogWriter(config)
+        logWriter.start()
+
+        when:
+        def allFiles = dir.listFiles()
+
+        then:
+        // No files created during start, only on first flush
+        allFiles.length == 0
+    }
+
+    def "rotates log file when exceeding filesize limit"() {
+        setup:
+        File dir = File.createTempDir("dshackle-test-")
+        File accessLog = new File(dir, "accesslog.jsonl")
+
+        MainConfig config = new MainConfig()
+        config.accessLogConfig = new AccessLogConfig(true, false, false).tap {
+            it.filename = accessLog.absolutePath
+            it.fileSize = 100L // 100 bytes limit - a single event exceeds this
+        }
+        AccessLogWriter logWriter = new AccessLogWriter(config)
+        logWriter.start()
+
+        when:
+        // Flush writes one event (exceeds 100 bytes), triggers rotation
+        logWriter.submit(makeNativeCall(true))
+        logWriter.flush()
+
+        def backupFiles = dir.listFiles().findAll { it.name =~ /accesslog\.\d{8}T\d{6}\.jsonl/ }
+
+        then:
+        // The file was rotated after exceeding the size limit
+        backupFiles.size() == 1
+        // Rotated file contains the event
+        backupFiles[0].readLines().size() == 1
+        with(backupFiles[0].readLines()[0]) {
+            def json = Global.objectMapper.readValue(it, Map)
+            json["method"] == "NativeCall"
+        }
+    }
+
     def "chain target with errors-only filters events"() {
         setup:
         File dir = File.createTempDir("dshackle-test-")
@@ -443,7 +653,7 @@ class AccessLogWriterSpec extends Specification {
         config.accessLogConfig = new AccessLogConfig(true, false, false).tap {
             it.filename = globalLog.absolutePath
             it.chainTargets = [
-                    new AccessLogConfig.ChainLogTarget(true, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, false, true)
+                    new AccessLogConfig.ChainLogTarget(true, Chain.ETHEREUM__MAINNET, ethLog.absolutePath, false, true, null)
             ]
         }
         AccessLogWriter logWriter = new AccessLogWriter(config)

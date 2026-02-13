@@ -453,11 +453,13 @@ accessLog:
   enabled: true
   errors-only: true
   filename: /var/log/dshackle/access_log.jsonl
+  filesize: 100mb
   chains:
     - chain: ethereum
       enabled: false
       filename: /var/log/dshackle/ethereum.jsonl
       include-messages: true
+      filesize: 50mb
     - chain: bitcoin
       enabled: false
       filename: /var/log/dshackle/bitcoin.jsonl
@@ -488,6 +490,10 @@ This is useful for debugging RPC errors without the noise of successful requests
 | _(optional)_
 | Path to the global access log file. Omit to skip global logging (useful when only per-chain or per-upstream logs are needed).
 
+| `filesize`
+| _(none)_
+| Maximum file size before rotation (e.g., `100mb`, `1gb`, `500kb`). When a log file exceeds this size, it is renamed with a timestamp suffix and a new file is started. Existing logs are also rotated on startup.
+
 | `chains`
 |
 | List of per-chain log targets. Each entry routes events for a specific blockchain to a separate file.
@@ -511,6 +517,10 @@ This is useful for debugging RPC errors without the noise of successful requests
 | `chains[].errors-only`
 | _(inherits global)_
 | Override global `errors-only` for this chain target
+
+| `chains[].filesize`
+| _(inherits global)_
+| Override global `filesize` for this chain target
 
 |===
 
@@ -555,6 +565,10 @@ cluster:
 | `access-log.errors-only`
 | `false`
 | Log only failed NativeCall events
+
+| `access-log.filesize`
+| _(none)_
+| Maximum file size before rotation (e.g., `100mb`, `1gb`)
 
 |===
 

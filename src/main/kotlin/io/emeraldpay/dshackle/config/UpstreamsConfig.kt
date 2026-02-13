@@ -197,6 +197,7 @@ data class UpstreamsConfig(
         val filename: String,
         val includeMessages: Boolean = false,
         val errorsOnly: Boolean = false,
+        val fileSize: Long? = null,
     )
 
     data class AdditionalSettings(
