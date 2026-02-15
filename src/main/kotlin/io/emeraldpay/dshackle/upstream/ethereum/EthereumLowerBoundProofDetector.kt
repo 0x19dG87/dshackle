@@ -30,6 +30,9 @@ class EthereumLowerBoundProofDetector(
             "Method not found", // Monad error bc they don't have eth_getProofs
             "invalid block height", // hyperliquid
             "not supported",
+            "state histories haven't been fully indexed yet",
+            "historical state not available in path scheme yet",
+            "required historical state unavailable",
         )
     }
 
