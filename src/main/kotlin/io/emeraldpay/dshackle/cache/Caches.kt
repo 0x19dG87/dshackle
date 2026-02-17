@@ -28,6 +28,10 @@ import io.emeraldpay.dshackle.upstream.Head
 import io.emeraldpay.dshackle.upstream.ethereum.json.BlockJson
 import io.emeraldpay.dshackle.upstream.ethereum.json.TransactionJson
 import io.emeraldpay.dshackle.upstream.ethereum.json.TransactionReceiptJson
+import io.lettuce.core.api.StatefulRedisConnection
+import io.lettuce.core.codec.ByteArrayCodec
+import io.lettuce.core.codec.RedisCodec
+import io.lettuce.core.codec.StringCodec
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -37,10 +41,10 @@ open class Caches(
     private val blocksByHeight: HeightCache,
     private val memTxsByHash: TxMemCache,
     private val memReceipts: ReceiptMemCache,
-    private val redisBlocksByHash: BlocksRedisCache?,
-    private val redisTxsByHash: TxRedisCache?,
-    private val redisReceipts: ReceiptRedisCache?,
-    private val redisHeightByHashCache: HeightByHashRedisCache?,
+    private var redisBlocksByHash: BlocksRedisCache?,
+    private var redisTxsByHash: TxRedisCache?,
+    private var redisReceipts: ReceiptRedisCache?,
+    private var redisHeightByHashCache: HeightByHashRedisCache?,
     private val cacheEnabled: Boolean,
     private val chain: Chain = Chain.UNSPECIFIED,
 ) {
@@ -61,33 +65,39 @@ open class Caches(
 
     private val memHeightByHash: HeightByHashMemCache = HeightByHashMemCache()
 
-    private val blocksByHash: Reader<BlockId, BlockContainer>
-    private val txsByHash: Reader<TxId, TxContainer>
-    private val receiptByHash: Reader<TxId, ByteArray>
+    @Volatile
+    private var blocksByHash: Reader<BlockId, BlockContainer>
+    @Volatile
+    private var txsByHash: Reader<TxId, TxContainer>
+    @Volatile
+    private var receiptByHash: Reader<TxId, ByteArray>
     private val heightByNumber: Reader<Long, BlockId>
 
     private var head: Head? = null
 
     init {
         val chainCode = chain.chainCode
-        val baseBlocksByHash = if (redisBlocksByHash == null) {
+        val initRedisBlocks = redisBlocksByHash
+        val baseBlocksByHash = if (initRedisBlocks == null) {
             memBlocksByHash
         } else {
-            CompoundReader(memBlocksByHash, redisBlocksByHash)
+            CompoundReader(memBlocksByHash, initRedisBlocks)
         }
         blocksByHash = MetricsTrackingReader(baseBlocksByHash, "blocks", chainCode)
 
-        val baseTxsByHash = if (redisTxsByHash == null) {
+        val initRedisTx = redisTxsByHash
+        val baseTxsByHash = if (initRedisTx == null) {
             memTxsByHash
         } else {
-            CompoundReader(memTxsByHash, redisTxsByHash)
+            CompoundReader(memTxsByHash, initRedisTx)
         }
         txsByHash = MetricsTrackingReader(baseTxsByHash, "tx", chainCode)
 
-        val baseReceiptByHash = if (redisReceipts == null) {
+        val initRedisReceipts = redisReceipts
+        val baseReceiptByHash = if (initRedisReceipts == null) {
             memReceipts
         } else {
-            CompoundReader(memReceipts, redisReceipts)
+            CompoundReader(memReceipts, initRedisReceipts)
         }
         receiptByHash = MetricsTrackingReader(baseReceiptByHash, "receipts", chainCode)
 
@@ -122,6 +132,34 @@ open class Caches(
         this.head = head
         redisTxsByHash?.head = head
         redisReceipts?.head = head
+    }
+
+    fun upgradeWithRedis(redisConnection: StatefulRedisConnection<String, ByteArray>) {
+        val reactive = redisConnection.reactive()
+        val chainCode = chain.chainCode
+
+        val newRedisBlocks = BlocksRedisCache(reactive, chain)
+        val newRedisTx = TxRedisCache(reactive, chain)
+        val newRedisReceipts = ReceiptRedisCache(reactive, chain)
+        val newRedisHeight = HeightByHashRedisCache(reactive, chain)
+
+        redisBlocksByHash = newRedisBlocks
+        redisTxsByHash = newRedisTx
+        redisReceipts = newRedisReceipts
+        redisHeightByHashCache = newRedisHeight
+
+        // set head on new redis caches if already available
+        head?.let { h ->
+            newRedisTx.head = h
+            newRedisReceipts.head = h
+        }
+
+        // rebuild compound readers so read operations also use Redis
+        blocksByHash = MetricsTrackingReader(CompoundReader(memBlocksByHash, newRedisBlocks), "blocks", chainCode)
+        txsByHash = MetricsTrackingReader(CompoundReader(memTxsByHash, newRedisTx), "tx", chainCode)
+        receiptByHash = MetricsTrackingReader(CompoundReader(memReceipts, newRedisReceipts), "receipts", chainCode)
+
+        log.info("Caches for $chain upgraded with Redis")
     }
 
     open fun cacheReceipt(tag: Tag, data: DefaultContainer<TransactionReceiptJson>) {
@@ -183,11 +221,12 @@ open class Caches(
                     val transactions = plainTransactions.map { tx ->
                         TxContainer.from(tx)
                     }
-                    if (redisTxsByHash != null) {
+                    val currentRedisTx = redisTxsByHash
+                    if (currentRedisTx != null) {
                         job.add(
                             Flux.fromIterable(transactions)
                                 .doOnNext { memTxsByHash.add(it) }
-                                .flatMap { redisTxsByHash.add(it, block) }
+                                .flatMap { currentRedisTx.add(it, block) }
                                 .then(),
                         )
                     }

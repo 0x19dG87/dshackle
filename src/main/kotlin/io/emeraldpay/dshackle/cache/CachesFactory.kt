@@ -28,7 +28,6 @@ import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Repository
 import java.util.EnumMap
-import kotlin.system.exitProcess
 
 @Repository
 open class CachesFactory(
@@ -38,6 +37,8 @@ open class CachesFactory(
     companion object {
         private val log = LoggerFactory.getLogger(CachesFactory::class.java)
         private const val CONFIG_PREFIX = "cache.redis"
+        private const val INITIAL_RETRY_DELAY_MS = 1_000L
+        private const val MAX_RETRY_DELAY_MS = 30_000L
     }
 
     private var redis: StatefulRedisConnection<String, ByteArray>? = null
@@ -71,21 +72,54 @@ open class CachesFactory(
             log.info("Connection to Redis established")
             redis = client.connect(RedisCodec.of(StringCodec.ASCII, ByteArrayCodec.INSTANCE))
         } catch (e: RedisConnectionException) {
-            log.error("Unable to establish connection to the Redis server")
-            log.error("Redis error: ${e.message}")
-            log.error("Redis config: ")
-            log.error("  uri: ${redisConfig.host}:${redisConfig.port}")
+            log.warn("Unable to establish connection to the Redis server")
+            log.warn("Redis error: ${e.message}")
+            log.warn("Redis config: ")
+            log.warn("  uri: ${redisConfig.host}:${redisConfig.port}")
             redisConfig.db?.let {
-                log.error("  db: $it")
+                log.warn("  db: $it")
             }
             if (redisConfig.password != null && redisConfig.password!!.isNotBlank()) {
-                log.error("  password: (set)")
+                log.warn("  password: (set)")
             } else {
-                log.error("  password: (not set)")
+                log.warn("  password: (not set)")
             }
-            log.error("Stopping the server...")
-            exitProcess(1)
+            log.warn("Starting with memory-only caches. Will retry Redis connection in background.")
+            connectRedisInBackground(client)
         }
+    }
+
+    private fun connectRedisInBackground(client: RedisClient) {
+        val thread = Thread {
+            var delay = INITIAL_RETRY_DELAY_MS
+            while (true) {
+                try {
+                    Thread.sleep(delay)
+                    log.info("Retrying Redis connection...")
+                    val ping = client.connect().sync().ping()
+                    if (ping == "PONG") {
+                        log.info("Connection to Redis established (background retry)")
+                        redis = client.connect(RedisCodec.of(StringCodec.ASCII, ByteArrayCodec.INSTANCE))
+                        synchronized(all) {
+                            all.values.forEach { caches ->
+                                caches.upgradeWithRedis(redis!!)
+                            }
+                        }
+                        return@Thread
+                    }
+                } catch (e: RedisConnectionException) {
+                    log.warn("Redis still unavailable, next retry in ${delay / 1000}s: ${e.message}")
+                } catch (e: InterruptedException) {
+                    log.info("Redis background connection thread interrupted")
+                    Thread.currentThread().interrupt()
+                    return@Thread
+                }
+                delay = (delay * 2).coerceAtMost(MAX_RETRY_DELAY_MS)
+            }
+        }
+        thread.name = "redis-reconnect"
+        thread.isDaemon = true
+        thread.start()
     }
 
     private fun initCache(chain: Chain): Caches {
