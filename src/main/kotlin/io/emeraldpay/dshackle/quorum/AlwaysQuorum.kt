@@ -48,14 +48,14 @@ open class AlwaysQuorum : CallQuorum {
         }
         // Non-retryable error codes
         return when (error.code) {
-            3 -> true        // EIP-1474: execution reverted
-            -32700 -> true   // Parse error
-            -32600 -> true   // Invalid request
-            -32601 -> true   // Method not found
-            -32602 -> true   // Invalid params
-            -32003 -> true   // Transaction rejected
-            -32004 -> true   // Method not supported
-            else -> false    // All others are retryable (-32000, -32001, -32002, -32005, etc.)
+            3 -> true // EIP-1474: execution reverted
+            -32700 -> true // Parse error
+            -32600 -> true // Invalid request
+            -32601 -> true // Method not found
+            -32602 -> true // Invalid params
+            -32003 -> true // Transaction rejected
+            -32004 -> true // Method not supported
+            else -> false // All others are retryable (-32000, -32001, -32002, -32005, etc.)
         }
     }
 

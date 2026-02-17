@@ -17,8 +17,8 @@ package io.emeraldpay.dshackle.quorum
 
 import io.emeraldpay.dshackle.Global
 import io.emeraldpay.dshackle.commons.SPAN_REQUEST_API_TYPE
-import io.emeraldpay.dshackle.monitoring.UpstreamMetrics
 import io.emeraldpay.dshackle.commons.SPAN_REQUEST_UPSTREAM_ID
+import io.emeraldpay.dshackle.monitoring.UpstreamMetrics
 import io.emeraldpay.dshackle.reader.RequestReader
 import io.emeraldpay.dshackle.upstream.ApiSource
 import io.emeraldpay.dshackle.upstream.ChainCallUpstreamException
@@ -50,6 +50,7 @@ class QuorumRequestReader(
     signer: ResponseSigner?,
 ) : RequestReader(signer) {
     private val errorHandler = UpstreamErrorHandler
+
     // Track the last failed upstream for failover metrics
     @Volatile
     private var lastFailedUpstream: Upstream? = null

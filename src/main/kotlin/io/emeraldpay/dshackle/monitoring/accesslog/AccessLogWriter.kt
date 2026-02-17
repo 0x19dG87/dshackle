@@ -15,7 +15,7 @@
  */
 package io.emeraldpay.dshackle.monitoring.accesslog
 
-import io.emeraldpay.dshackle.Chain
+import com.fasterxml.jackson.databind.node.ObjectNode
 import io.emeraldpay.dshackle.Global
 import io.emeraldpay.dshackle.config.AccessLogConfig
 import io.emeraldpay.dshackle.config.MainConfig
@@ -23,7 +23,6 @@ import jakarta.annotation.PostConstruct
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Repository
-import com.fasterxml.jackson.databind.node.ObjectNode
 import java.io.BufferedOutputStream
 import java.io.File
 import java.io.FileOutputStream

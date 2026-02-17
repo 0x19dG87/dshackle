@@ -29,9 +29,6 @@ import io.emeraldpay.dshackle.upstream.ethereum.json.BlockJson
 import io.emeraldpay.dshackle.upstream.ethereum.json.TransactionJson
 import io.emeraldpay.dshackle.upstream.ethereum.json.TransactionReceiptJson
 import io.lettuce.core.api.StatefulRedisConnection
-import io.lettuce.core.codec.ByteArrayCodec
-import io.lettuce.core.codec.RedisCodec
-import io.lettuce.core.codec.StringCodec
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
@@ -67,8 +64,10 @@ open class Caches(
 
     @Volatile
     private var blocksByHash: Reader<BlockId, BlockContainer>
+
     @Volatile
     private var txsByHash: Reader<TxId, TxContainer>
+
     @Volatile
     private var receiptByHash: Reader<TxId, ByteArray>
     private val heightByNumber: Reader<Long, BlockId>

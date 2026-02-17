@@ -44,10 +44,14 @@ object UpstreamMetrics {
             Counter.builder("upstream.rpc.fail")
                 .description("Number of upstream RPC failures by method and error code")
                 .tags(
-                    "chain", chain,
-                    "upstream", upstream,
-                    "method", method,
-                    "error_code", errorCode?.toString() ?: "unknown",
+                    "chain",
+                    chain,
+                    "upstream",
+                    upstream,
+                    "method",
+                    method,
+                    "error_code",
+                    errorCode?.toString() ?: "unknown",
                 )
                 .register(Metrics.globalRegistry)
         }.increment()
@@ -68,10 +72,14 @@ object UpstreamMetrics {
             Counter.builder("upstream.selected")
                 .description("Number of times an upstream was selected for a request")
                 .tags(
-                    "chain", chain,
-                    "upstream", upstream,
-                    "role", role,
-                    "method", method,
+                    "chain",
+                    chain,
+                    "upstream",
+                    upstream,
+                    "role",
+                    role,
+                    "method",
+                    method,
                 )
                 .register(Metrics.globalRegistry)
         }.increment()
@@ -92,10 +100,14 @@ object UpstreamMetrics {
             Counter.builder("upstream.failover")
                 .description("Number of failovers from one upstream to another")
                 .tags(
-                    "chain", chain,
-                    "failed_upstream", failedUpstream,
-                    "next_upstream", nextUpstream,
-                    "method", method,
+                    "chain",
+                    chain,
+                    "failed_upstream",
+                    failedUpstream,
+                    "next_upstream",
+                    nextUpstream,
+                    "method",
+                    method,
                 )
                 .register(Metrics.globalRegistry)
         }.increment()

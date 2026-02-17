@@ -101,8 +101,10 @@ class FilteredApis(
     private var started = false
     private val control = Sinks.many().unicast().onBackpressureBuffer<Boolean>()
     private var upstreamsMatchesResponse: UpstreamsMatchesResponse? = UpstreamsMatchesResponse()
+
     // Track upstreams that have been tried to prioritize untried ones in retries
     private val triedUpstreams = mutableSetOf<String>()
+
     // Track providers that have failed to skip other upstreams from the same provider
     private val failedProviders = mutableSetOf<String>()
 

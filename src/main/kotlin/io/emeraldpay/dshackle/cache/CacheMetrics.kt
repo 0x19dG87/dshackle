@@ -58,9 +58,12 @@ object CacheMetrics {
             Counter.builder("cache.requests")
                 .description("Number of cache requests by type, chain, and result")
                 .tags(
-                    "cache", cache,
-                    "chain", chain,
-                    "result", result,
+                    "cache",
+                    cache,
+                    "chain",
+                    chain,
+                    "result",
+                    result,
                 )
                 .register(Metrics.globalRegistry)
         }
