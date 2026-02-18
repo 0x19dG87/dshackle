@@ -36,7 +36,6 @@ import spock.lang.Specification
 import java.time.Duration
 
 import static java.util.List.of
-import static java.util.List.of
 
 class QuorumRequestReaderSpec extends Specification {
 
@@ -46,6 +45,8 @@ class QuorumRequestReaderSpec extends Specification {
             _ * isAvailable() >> true
             _ * getId() >> "id"
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
+            _ * getChain() >> Chain.ETHEREUM__MAINNET
+            _ * getLabels() >> []
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_test", new ListParams())) >> Mono.just(ChainResponse.ok("1"))
             }
@@ -69,17 +70,19 @@ class QuorumRequestReaderSpec extends Specification {
                 .verify(Duration.ofSeconds(1))
     }
 
-    def "always-quorum - return upstream error returned"() {
+    def "always-quorum - return upstream non-retryable error returned"() {
         setup:
         def api = Mock(Reader) {
             1 * read(new ChainRequest("eth_test", new ListParams())) >>> [
-                    Mono.just(ChainResponse.error(1, "test"))
+                    Mono.just(ChainResponse.error(-32600, "test"))
             ]
         }
         def up = Mock(Upstream) {
             _ * isAvailable() >> true
             _ * getId() >> "id"
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
+            _ * getChain() >> Chain.ETHEREUM__MAINNET
+            _ * getLabels() >> []
             _ * getIngressReader() >> api
         }
         def apis = new FilteredApis(
@@ -102,13 +105,13 @@ class QuorumRequestReaderSpec extends Specification {
                 .verify(Duration.ofSeconds(1))
     }
 
-    def "always-quorum - return upstream error thrown"() {
+    def "always-quorum - return upstream non-retryable error thrown"() {
         setup:
         def api = Mock(Reader) {
             1 * read(new ChainRequest("eth_test", new ListParams())) >>> [
                     Mono.error(
                             new RpcException(
-                                    RpcResponseError.CODE_UPSTREAM_CONNECTION_ERROR,
+                                    -32600,
                                     "test-123"
                             )
                     )
@@ -118,6 +121,8 @@ class QuorumRequestReaderSpec extends Specification {
             _ * isAvailable() >> true
             _ * getId() >> "id"
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
+            _ * getChain() >> Chain.ETHEREUM__MAINNET
+            _ * getLabels() >> []
             _ * getIngressReader() >> api
         }
         def apis = new FilteredApis(
@@ -146,6 +151,8 @@ class QuorumRequestReaderSpec extends Specification {
             _ * isAvailable() >> true
             _ * getId() >> "id"
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
+            _ * getChain() >> Chain.ETHEREUM__MAINNET
+            _ * getLabels() >> []
             _ * getIngressReader() >> Mock(Reader) {
                 2 * read(new ChainRequest("eth_test", new ListParams())) >>> [
                         Mono.just(ChainResponse.ok("null")),
@@ -179,6 +186,8 @@ class QuorumRequestReaderSpec extends Specification {
             _ * isAvailable() >> true
             _ * getId() >> "id"
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
+            _ * getChain() >> Chain.ETHEREUM__MAINNET
+            _ * getLabels() >> []
             _ * getIngressReader() >> Mock(Reader) {
                 2 * read(new ChainRequest("eth_test", new ListParams())) >>> [
                         Mono.just(ChainResponse.error(1, "test")),
@@ -217,6 +226,8 @@ class QuorumRequestReaderSpec extends Specification {
             _ * getId() >> "test"
             _ * isAvailable() >> true
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
+            _ * getChain() >> Chain.ETHEREUM__MAINNET
+            _ * getLabels() >> []
             _ * getIngressReader() >> api
         }
         def apis = new FilteredApis(
@@ -237,17 +248,19 @@ class QuorumRequestReaderSpec extends Specification {
                 .verify(Duration.ofSeconds(2))
     }
 
-    def "always-quorum - error if failed"() {
+    def "always-quorum - error if failed with non-retryable error"() {
         setup:
         def api = Mock(Reader) {
             1 * read(new ChainRequest("eth_test", new ListParams())) >>> [
-                    Mono.just(ChainResponse.error(1, "test error")),
+                    Mono.just(ChainResponse.error(-32600, "test error")),
             ]
         }
         def up = Mock(Upstream) {
             _ * isAvailable() >> true
             _ * getId() >> "id"
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
+            _ * getChain() >> Chain.ETHEREUM__MAINNET
+            _ * getLabels() >> []
             _ * getIngressReader() >> api
         }
         def apis = new FilteredApis(
@@ -265,8 +278,7 @@ class QuorumRequestReaderSpec extends Specification {
         then:
         StepVerifier.create(act)
                 .expectErrorMatches { t ->
-                    println("Error: $t.class / $t.message")
-                    t instanceof ChainException && t.message == "test error" && t.error.code == 1
+                    t instanceof ChainException && t.message == "test error" && t.error.code == -32600
                 }
                 .verify(Duration.ofSeconds(2))
     }
@@ -278,6 +290,8 @@ class QuorumRequestReaderSpec extends Specification {
             _ * getId() >> "id"
             _ * isAvailable() >> true
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
+            _ * getChain() >> Chain.ETHEREUM__MAINNET
+            _ * getLabels() >> []
             _ * getIngressReader() >> Mock(Reader) {
                 _ * read(new ChainRequest("eth_test", new ListParams())) >>> [
                         Mono.just(ChainResponse.error(-3010, "test")),
@@ -308,6 +322,7 @@ class QuorumRequestReaderSpec extends Specification {
             _ * getId() >> "id1"
             _ * isAvailable() >> false
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
+            _ * getLabels() >> []
             _ * getIngressReader() >> api
         }
         def apis = new FilteredApis(
@@ -339,24 +354,24 @@ class QuorumRequestReaderSpec extends Specification {
                     _ * isAvailable() >> false
                     _ * getId() >> "id1"
                     _ * getStatus() >> UpstreamAvailability.OK
-                    _ * getHead() >> Mock(Head) {
-                        _ * getCurrentHeight() >> 100000
-                    }
                     _ * getLabels() >> of(
                             UpstreamsConfig.Labels.fromMap(
                                     Map.of("node", "archive", "type", "super")
                             )
                     )
+                    _ * getHead() >> Mock(Head) {
+                        _ * getCurrentHeight() >> 100000
+                    }
                 },
                 Mock(Upstream) {
                     _ * getId() >> "id2"
                     _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
                     _ * isAvailable() >> false
+                    _ * getLabels() >> of(UpstreamsConfig.Labels.fromMap(Map.of("node", "archive")))
                     _ * getHead() >> Mock(Head) {
                         _ * getCurrentHeight() >> 100000
                     }
                     _ * getStatus() >> UpstreamAvailability.OK
-                    _ * getLabels() >> of(UpstreamsConfig.Labels.fromMap(Map.of("node", "archive")))
                 }
         ]
         def apis = new FilteredApis(Chain.ETHEREUM__MAINNET, ups, new Selector.MultiMatcher(

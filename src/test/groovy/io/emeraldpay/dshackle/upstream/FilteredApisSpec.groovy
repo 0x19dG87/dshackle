@@ -41,7 +41,7 @@ class FilteredApisSpec extends Specification {
 
     def "Verifies labels"() {
         setup:
-        def i = 0
+        def idx = 0
         def cs = io.emeraldpay.dshackle.upstream.starknet.StarknetChainSpecific.INSTANCE
         List<GenericUpstream> upstreams = [
                 [test: "foo"],
@@ -52,7 +52,7 @@ class FilteredApisSpec extends Specification {
         ].collect {
 
             def httpFactory = Mock(HttpFactory) {
-                create(_, _) >> Stub(HttpReader)
+                create(_, _, _) >> Stub(HttpReader)
             }
             def connectorFactory = new GenericConnectorFactory(
                     GenericConnectorFactory.ConnectorMode.RPC_ONLY,
@@ -66,7 +66,7 @@ class FilteredApisSpec extends Specification {
                     Duration.ofSeconds(12)
             )
             new GenericUpstream(
-                    "test",
+                    "test_${idx++}",
                     Chain.ETHEREUM__MAINNET,
                     (byte) 123,
                     new ChainOptions.PartialOptions().buildOptions(),
@@ -133,8 +133,8 @@ class FilteredApisSpec extends Specification {
         def apis = (0..5).collect {
             new EthereumApiStub(it)
         }
-        def ups = apis.collect {
-            TestingCommons.upstream(it)
+        def ups = apis.withIndex().collect { api, idx ->
+            TestingCommons.upstream("test_${idx}", api)
         }
         when:
         def act = new FilteredApis(Chain.ETHEREUM__MAINNET, ups, Selector.empty, 2, 0, Selector.Sort.default)
@@ -152,8 +152,8 @@ class FilteredApisSpec extends Specification {
         def apis = (0..5).collect {
             new EthereumApiStub(it)
         }
-        def ups = apis.collect {
-            TestingCommons.upstream(it)
+        def ups = apis.withIndex().collect { api, idx ->
+            TestingCommons.upstream("test_${idx}", api)
         }
         when:
         def act = new FilteredApis(Chain.ETHEREUM__MAINNET, ups, Selector.empty, 2, 0, Selector.Sort.default)
@@ -210,6 +210,8 @@ class FilteredApisSpec extends Specification {
                     _ * getRole() >> UpstreamsConfig.UpstreamRole.FALLBACK
                     _ * isAvailable() >> true
                     _ * getStatus() >> UpstreamAvailability.OK
+                    _ * getId() >> "fallback_0"
+                    _ * getLabels() >> []
                 }
         ]
         when:
@@ -220,6 +222,7 @@ class FilteredApisSpec extends Specification {
         then:
         StepVerifier.create(act)
                 .expectNext(standard[0], standard[1]).as("Initial requests")
+                .expectNext(fallback[0]).as("Initial requests with fallback")
                 .expectNext(standard[0], standard[1]).as("Retry with standard")
                 .expectNext(fallback[0]).as("Retry with fallback")
                 .expectComplete()
@@ -239,6 +242,8 @@ class FilteredApisSpec extends Specification {
                     _ * getRole() >> UpstreamsConfig.UpstreamRole.FALLBACK
                     _ * isAvailable() >> true
                     _ * getStatus() >> UpstreamAvailability.OK
+                    _ * getId() >> "fallback_0"
+                    _ * getLabels() >> []
                 }
         ]
         List<Upstream> secondary = [
@@ -246,17 +251,20 @@ class FilteredApisSpec extends Specification {
                     _ * getRole() >> UpstreamsConfig.UpstreamRole.SECONDARY
                     _ * isAvailable() >> true
                     _ * getStatus() >> UpstreamAvailability.OK
+                    _ * getId() >> "secondary_0"
+                    _ * getLabels() >> []
                 }
         ]
         when:
         def act = new FilteredApis(Chain.ETHEREUM__MAINNET,
                 [] + fallback + standard + secondary,
                 Selector.empty, 0, 2, Selector.Sort.default)
-        act.request(11)
+        act.request(12)
         then:
         StepVerifier.create(act)
                 .expectNext(standard[0], standard[1]).as("Initial requests with primary")
                 .expectNext(secondary[0]).as("Initial requests with secondary")
+                .expectNext(fallback[0]).as("Initial requests with fallback")
 
                 .expectNext(standard[0], standard[1]).as("Retry with primary")
                 .expectNext(secondary[0]).as("Retry with secondary")
@@ -276,6 +284,8 @@ class FilteredApisSpec extends Specification {
                     _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
                     _ * isAvailable() >> true
                     _ * getStatus() >> UpstreamAvailability.LAGGING
+                    _ * getId() >> "lagging_0"
+                    _ * getLabels() >> []
                 }
         ]
         List<Upstream> ok = [
@@ -283,6 +293,8 @@ class FilteredApisSpec extends Specification {
                     _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
                     _ * isAvailable() >> true
                     _ * getStatus() >> UpstreamAvailability.OK
+                    _ * getId() >> "ok_0"
+                    _ * getLabels() >> []
                 }
         ]
         when:
@@ -308,12 +320,14 @@ class FilteredApisSpec extends Specification {
                     _ * isAvailable() >> false
                     _ * getId() >> "id1"
                     _ * getStatus() >> UpstreamAvailability.SYNCING
+                    _ * getLabels() >> []
                 },
                 Mock(Upstream) {
                     _ * getId() >> "id2"
                     _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
                     _ * isAvailable() >> false
                     _ * getStatus() >> UpstreamAvailability.SYNCING
+                    _ * getLabels() >> []
                 }
         ]
         when:

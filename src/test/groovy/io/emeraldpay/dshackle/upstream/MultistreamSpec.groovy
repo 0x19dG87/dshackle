@@ -279,7 +279,7 @@ class MultistreamSpec extends Specification {
         then:
         assert ms.getMethods().supportedMethods == Set.of("eth_test1", "eth_test2", "eth_test3")
         when:
-        up1.onStatus(status(Common.AvailabilityEnum.AVAIL_SYNCING))
+        up1.onStatus(status(Common.AvailabilityEnum.AVAIL_UNAVAILABLE))
         then:
         assert ms.getMethods().supportedMethods == Set.of("eth_test1", "eth_test2")
         when:

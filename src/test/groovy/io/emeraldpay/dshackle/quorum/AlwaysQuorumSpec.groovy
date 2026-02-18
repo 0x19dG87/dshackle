@@ -16,6 +16,7 @@
 package io.emeraldpay.dshackle.quorum
 
 import io.emeraldpay.dshackle.upstream.Upstream
+import io.emeraldpay.dshackle.upstream.ChainCallError
 import io.emeraldpay.dshackle.upstream.ChainException
 import io.emeraldpay.dshackle.upstream.ChainResponse
 import io.emeraldpay.dshackle.upstream.signature.ResponseSigner
@@ -23,14 +24,31 @@ import spock.lang.Specification
 
 class AlwaysQuorumSpec extends Specification {
 
-    def "Failed if error received"() {
+    def "Failed if non-retryable error received"() {
         setup:
         def quorum = new AlwaysQuorum()
         def up = Stub(Upstream)
         when:
-        quorum.record(new ChainException(1, "test"), null, up)
+        // Use non-retryable error code -32600 (Invalid request)
+        quorum.record(new ChainException(new ChainResponse.NumberId(1), new ChainCallError(-32600, "test"), [], true, null), null, up)
         then:
         quorum.isFailed()
+        !quorum.isResolved()
+        quorum.getError() != null
+        with(quorum.getError()) {
+            message == "test"
+        }
+    }
+
+    def "Not failed if retryable error received"() {
+        setup:
+        def quorum = new AlwaysQuorum()
+        def up = Stub(Upstream)
+        when:
+        // Use retryable error code -32005 (server error)
+        quorum.record(new ChainException(new ChainResponse.NumberId(1), new ChainCallError(-32005, "test"), [], true, null), null, up)
+        then:
+        !quorum.isFailed()
         !quorum.isResolved()
         quorum.getError() != null
         with(quorum.getError()) {

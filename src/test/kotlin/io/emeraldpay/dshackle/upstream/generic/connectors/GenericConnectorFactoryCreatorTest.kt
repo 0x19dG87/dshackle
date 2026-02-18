@@ -6,6 +6,7 @@ import io.emeraldpay.dshackle.config.ChainsConfig
 import io.emeraldpay.dshackle.config.ChainsConfigReader
 import io.emeraldpay.dshackle.config.MonitoringConfig
 import io.emeraldpay.dshackle.config.UpstreamsConfig
+import io.emeraldpay.dshackle.foundation.ChainOptions
 import io.emeraldpay.dshackle.foundation.ChainOptionsReader
 import io.emeraldpay.dshackle.startup.configure.GenericConnectorFactoryCreator
 import io.emeraldpay.dshackle.upstream.BlockValidator
@@ -56,7 +57,13 @@ class GenericConnectorFactoryCreatorTest {
                     AlwaysForkChoice(),
                     BlockValidator.ALWAYS_VALID,
                     config,
-                )?.create(mock<DefaultUpstream> { on { getId() } doReturn "id" }, Chain.ETHEREUM__MAINNET)
+                )?.create(
+                    mock<DefaultUpstream> {
+                        on { getId() } doReturn "id"
+                        on { getOptions() } doReturn ChainOptions.PartialOptions.getDefaults().buildOptions()
+                    },
+                    Chain.ETHEREUM__MAINNET,
+                )
 
                 assertEquals(expectedBlockTime, args?.get(7))
             }
