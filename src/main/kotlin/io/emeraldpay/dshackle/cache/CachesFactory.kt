@@ -19,6 +19,7 @@ import io.emeraldpay.dshackle.Chain
 import io.emeraldpay.dshackle.config.CacheConfig
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisConnectionException
+import io.lettuce.core.RedisLoadingException
 import io.lettuce.core.RedisURI
 import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.codec.ByteArrayCodec
@@ -72,21 +73,27 @@ open class CachesFactory(
             log.info("Connection to Redis established")
             redis = client.connect(RedisCodec.of(StringCodec.ASCII, ByteArrayCodec.INSTANCE))
         } catch (e: RedisConnectionException) {
-            log.warn("Unable to establish connection to the Redis server")
-            log.warn("Redis error: ${e.message}")
-            log.warn("Redis config: ")
-            log.warn("  uri: ${redisConfig.host}:${redisConfig.port}")
-            redisConfig.db?.let {
-                log.warn("  db: $it")
-            }
-            if (redisConfig.password != null && redisConfig.password!!.isNotBlank()) {
-                log.warn("  password: (set)")
-            } else {
-                log.warn("  password: (not set)")
-            }
-            log.warn("Starting with memory-only caches. Will retry Redis connection in background.")
-            connectRedisInBackground(client)
+            handleRedisStartupFailure(e, redisConfig, client)
+        } catch (e: RedisLoadingException) {
+            handleRedisStartupFailure(e, redisConfig, client)
         }
+    }
+
+    private fun handleRedisStartupFailure(e: Exception, redisConfig: CacheConfig.Redis, client: RedisClient) {
+        log.warn("Unable to establish connection to the Redis server")
+        log.warn("Redis error: ${e.message}")
+        log.warn("Redis config: ")
+        log.warn("  uri: ${redisConfig.host}:${redisConfig.port}")
+        redisConfig.db?.let {
+            log.warn("  db: $it")
+        }
+        if (redisConfig.password != null && redisConfig.password!!.isNotBlank()) {
+            log.warn("  password: (set)")
+        } else {
+            log.warn("  password: (not set)")
+        }
+        log.warn("Starting with memory-only caches. Will retry Redis connection in background.")
+        connectRedisInBackground(client)
     }
 
     private fun connectRedisInBackground(client: RedisClient) {
@@ -109,6 +116,8 @@ open class CachesFactory(
                     }
                 } catch (e: RedisConnectionException) {
                     log.warn("Redis still unavailable, next retry in ${delay / 1000}s: ${e.message}")
+                } catch (e: RedisLoadingException) {
+                    log.warn("Redis still loading dataset, next retry in ${delay / 1000}s: ${e.message}")
                 } catch (e: InterruptedException) {
                     log.info("Redis background connection thread interrupted")
                     Thread.currentThread().interrupt()
