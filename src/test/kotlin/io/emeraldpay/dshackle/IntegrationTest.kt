@@ -13,6 +13,7 @@ import io.emeraldpay.dshackle.upstream.Selector
 import io.grpc.BindableService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.condition.EnabledIf
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -21,12 +22,14 @@ import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Profile
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.util.ResourceUtils
+import org.testcontainers.DockerClientFactory
 import org.testcontainers.containers.GenericContainer
 import java.net.URI
 
 @SpringBootTest(properties = ["spring.main.allow-bean-definition-overriding=true"])
 @Import(Config::class)
 @ActiveProfiles("integration-test")
+@EnabledIf("isDockerAvailable")
 class IntegrationTest {
 
     @Autowired
@@ -36,6 +39,14 @@ class IntegrationTest {
     lateinit var multistreamHolder: MultistreamHolder
 
     companion object {
+        @JvmStatic
+        fun isDockerAvailable(): Boolean = try {
+            DockerClientFactory.instance().client()
+            true
+        } catch (e: Exception) {
+            false
+        }
+
         var ganache: GenericContainer<*> = GenericContainer<Nothing>("trufflesuite/ganache:latest").apply {
             withExposedPorts(8545)
             withCommand(
@@ -47,7 +58,9 @@ class IntegrationTest {
         }
 
         init {
-            ganache.start()
+            if (isDockerAvailable()) {
+                ganache.start()
+            }
         }
     }
 
