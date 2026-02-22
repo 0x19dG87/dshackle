@@ -57,6 +57,7 @@ class ManagedCallMethods(
     )
     private val quorum: MutableMap<String, Factory<CallQuorum>> = HashMap()
     private val staticResponse: MutableMap<String, String> = HashMap()
+    private val aliases: MutableMap<String, String> = HashMap()
 
     init {
         enabled.forEach { m ->
@@ -80,6 +81,12 @@ class ManagedCallMethods(
     fun setStaticResponse(method: String, response: String) {
         this.staticResponse[method] = response
     }
+
+    fun setAlias(method: String, alias: String) {
+        this.aliases[method] = alias
+    }
+
+    override fun translateMethod(method: String): String = aliases[method] ?: delegate.translateMethod(method)
 
     override fun createQuorumFor(method: String): CallQuorum {
         return when {

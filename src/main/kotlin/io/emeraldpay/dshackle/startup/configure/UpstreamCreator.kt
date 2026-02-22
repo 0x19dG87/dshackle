@@ -101,6 +101,9 @@ abstract class UpstreamCreator(
                     if (m.static != null) {
                         it.setStaticResponse(m.name, m.static)
                     }
+                    if (m.alias != null) {
+                        it.setAlias(m.name, m.alias)
+                    }
                 }
             }
         } else {

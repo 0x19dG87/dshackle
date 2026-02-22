@@ -223,5 +223,6 @@ data class UpstreamsConfig(
         val name: String,
         val quorum: String? = null,
         val static: String? = null,
+        val alias: String? = null,
     )
 }

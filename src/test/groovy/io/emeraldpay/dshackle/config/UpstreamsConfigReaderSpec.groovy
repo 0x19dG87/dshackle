@@ -330,6 +330,25 @@ class UpstreamsConfigReaderSpec extends Specification {
         }
     }
 
+    def "Parse config with methods and alias"() {
+        setup:
+        def config = this.class.getClassLoader().getResourceAsStream("configs/upstreams-methods-alias.yaml")
+        when:
+        def act = reader.readInternal(config)
+        then:
+        act != null
+        with(act.upstreams.get(0)) {
+            methods != null
+            with(methods) {
+                enabled.size() == 1
+                with(enabled.first()) {
+                    it.name == "trace_filter"
+                    it.alias == "arbtrace_filter"
+                }
+            }
+        }
+    }
+
     def "Parse config with invalid ids"() {
         setup:
         def config = this.class.getClassLoader().getResourceAsStream("configs/upstreams-no-id.yaml")

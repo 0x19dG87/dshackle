@@ -216,4 +216,21 @@ class ManagedCallMethodsSpec extends Specification {
             first() == "eth_newPendingTransactionFilter"
         }
     }
+
+    def "Translate aliased method"() {
+        setup:
+        def managed = new ManagedCallMethods(
+                new DefaultEthereumMethods(Chain.ETHEREUM__MAINNET),
+                ["trace_filter"] as Set,
+                [] as Set,
+                [] as Set,
+                [] as Set
+        )
+        managed.setAlias("trace_filter", "arbtrace_filter")
+
+        expect:
+        managed.isCallable("trace_filter")
+        managed.translateMethod("trace_filter") == "arbtrace_filter"
+        managed.translateMethod("eth_blockNumber") == "eth_blockNumber"
+    }
 }

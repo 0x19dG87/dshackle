@@ -334,6 +334,48 @@ upstreams:
           static: "false"
 ----
 
+=== Method Aliases
+
+Some blockchains expose the same functionality under different method names.
+For example, Arbitrum uses `arbtrace_filter` instead of the standard `trace_filter`.
+If a client calls a method that the upstream node does not support under that name, the request will fail.
+
+The `alias` field lets you configure a transparent method rename: the client calls the original name, Dshackle accepts it and forwards the request to the upstream using the aliased name.
+
+NOTE: The alias only affects the method name sent to the upstream. All routing, availability checks, and quorum logic continue to use the original method name as configured in `enabled`.
+
+[source,yaml]
+----
+upstreams:
+  - id: arbitrum-node
+    chain: arbitrum
+    methods:
+      enabled:
+        - name: trace_filter
+          alias: arbtrace_filter
+        - name: trace_call
+          alias: arbtrace_call
+        - name: trace_block
+          alias: arbtrace_block
+        - name: trace_get
+          alias: arbtrace_get
+        - name: trace_transaction
+          alias: arbtrace_transaction
+        - name: trace_replayTransaction
+          alias: arbtrace_replayTransaction
+        - name: trace_replayBlockTransactions
+          alias: arbtrace_replayBlockTransactions
+        - name: trace_callMany
+          alias: arbtrace_callMany
+    connection:
+      generic:
+        rpc:
+          url: "http://localhost:8547"
+----
+
+With this configuration any client calling `trace_filter` will have its request forwarded to the Arbitrum node as `arbtrace_filter`.
+All other methods remain unchanged and fully available.
+
 === Authentication
 
 ==== TLS

@@ -398,6 +398,7 @@ class UpstreamsConfigReader(
                         name = name,
                         quorum = getValueAsString(m, "quorum"),
                         static = getValueAsString(m, "static"),
+                        alias = getValueAsString(m, "alias"),
                     )
                 }
             }?.toSet() ?: emptySet()

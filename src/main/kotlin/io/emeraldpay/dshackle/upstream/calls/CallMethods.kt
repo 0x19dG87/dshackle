@@ -69,4 +69,10 @@ interface CallMethods {
     fun getDisabledMethods(): Set<String> {
         return setOf()
     }
+
+    /**
+     * Translates a method name to its upstream equivalent, if an alias is configured.
+     * Returns the original method name if no alias is set.
+     */
+    fun translateMethod(method: String): String = method
 }

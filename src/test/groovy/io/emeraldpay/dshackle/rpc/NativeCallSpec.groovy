@@ -388,6 +388,38 @@ class NativeCallSpec extends Specification {
         }
     }
 
+    def "Prepare call translates aliased method name for upstream"() {
+        setup:
+        def methods = new ManagedCallMethods(
+                new DefaultEthereumMethods(Chain.ETHEREUM__MAINNET),
+                ["trace_filter"] as Set, [] as Set, [] as Set, [] as Set
+        )
+        methods.setAlias("trace_filter", "arbtrace_filter")
+        def multistream = new MultistreamHolderMock.EthereumMultistreamMock(Chain.ETHEREUM__MAINNET, TestingCommons.upstream())
+        multistream.customMethods = methods
+        multistream.customHead = Mock(Head)
+        def multistreamHolder = Mock(MultistreamHolder) {
+            _ * it.observeChains() >> Flux.empty()
+        }
+        def nativeCall = nativeCall(multistreamHolder)
+
+        def req = BlockchainOuterClass.NativeCallRequest.newBuilder()
+                .setChain(Common.ChainRef.CHAIN_ETHEREUM__MAINNET)
+                .addItems(
+                        BlockchainOuterClass.NativeCallItem.newBuilder()
+                                .setId(1)
+                                .setPayload(ByteString.copyFromUtf8("[]"))
+                                .setMethod("trace_filter")
+                )
+                .build()
+        when:
+        def act = nativeCall.prepareCall(req, multistream)
+                .collectList().block(Duration.ofSeconds(1)).first()
+        then:
+        act instanceof NativeCall.ValidCallContext
+        act.payload.method == "arbtrace_filter"
+    }
+
     def "Prepare call adds height selector for not-lagging quorum"() {
         setup:
         def methods = new ManagedCallMethods(

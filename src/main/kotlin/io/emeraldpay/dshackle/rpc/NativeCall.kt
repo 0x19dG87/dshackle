@@ -360,7 +360,7 @@ open class NativeCall(
                 upstream,
                 Selector.UpstreamFilter(upstreamFilter?.sort ?: Selector.Sort.default, matcher.build()),
                 callQuorum,
-                parsedCallDetails(requestItem),
+                parsedCallDetails(requestItem, availableMethods.translateMethod(method)),
                 requestDecorator,
                 resultDecorator,
                 selector,
@@ -378,12 +378,12 @@ open class NativeCall(
         )
     }
 
-    private fun parsedCallDetails(item: BlockchainOuterClass.NativeCallItem): ParsedCallDetails {
+    private fun parsedCallDetails(item: BlockchainOuterClass.NativeCallItem, method: String = item.method): ParsedCallDetails {
         return if (item.hasPayload()) {
-            ParsedCallDetails(item.method, extractParams(item.payload.toStringUtf8()))
+            ParsedCallDetails(method, extractParams(item.payload.toStringUtf8()))
         } else if (item.hasRestData()) {
             ParsedCallDetails(
-                item.method,
+                method,
                 RestParams(
                     item.restData.headersList.map { Pair(it.key, it.value) },
                     item.restData.queryParamsList.map { Pair(it.key, it.value) },
