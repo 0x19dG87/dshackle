@@ -76,7 +76,7 @@ class EthereumFinalizationDetector : FinalizationDetector {
                             .timeout(Defaults.internalCallsTimeout)
                             .flatMap {
                                 it.requireResult().flatMap { result ->
-                                    val block = Global.objectMapper.readValue<BlockJson<TransactionRefJson>>(result)
+                                    val block = Global.objectMapper.readValue<BlockJson<TransactionRefJson>?>(result)
                                     if (block != null) {
                                         Mono.just(FinalizationData(block.number, type))
                                     } else {
