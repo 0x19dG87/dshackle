@@ -30,6 +30,8 @@ class EthereumLowerBoundBlockDetector(
             "invalid block height", // hyperliquid
             "pruned history unavailable", // xlayer
             "no transactions snapshot file for",
+            "has been pruned; earliest available is",
+            "could not find block for height",
         )
     }
 

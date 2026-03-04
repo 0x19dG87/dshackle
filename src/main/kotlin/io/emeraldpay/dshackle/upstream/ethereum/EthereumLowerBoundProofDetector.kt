@@ -33,6 +33,7 @@ class EthereumLowerBoundProofDetector(
             "state histories haven't been fully indexed yet",
             "historical state not available in path scheme yet",
             "required historical state unavailable",
+            "evm module does not exist on height",
         )
     }
 
