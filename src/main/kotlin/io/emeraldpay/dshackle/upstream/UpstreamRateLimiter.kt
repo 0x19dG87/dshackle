@@ -16,11 +16,11 @@ class UpstreamRateLimiter(private val maxRps: Int) {
                 val oldest = window.peekFirst() ?: break
                 if (nowNanos - oldest >= windowNanos) {
                     window.pollFirst(); size.decrementAndGet()
-                } else break
+                } else { break }
             }
             return if (size.get() < maxRps) {
                 window.addLast(nowNanos); size.incrementAndGet(); true
-            } else false
+            } else { false }
         }
     }
 
