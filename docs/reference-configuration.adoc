@@ -923,6 +923,13 @@ rpc:
     password: "${ETH_PASSWORD}"
 ----
 
+| `rpc.rate-limit`
+a| Maximum number of requests per second to send to this upstream.
+When the limit is reached, the upstream is skipped in favour of the next available upstream rather than queuing or returning an error.
+Useful for public endpoints that enforce hard rate limits (e.g. 30 req/s). +
+Optional. Default is unlimited (`null`). Values ≤ 0 are treated as unlimited. +
+Example: `rate-limit: 20`
+
 | `ws.url`
 | WebSocket URL to connect to.
 Optional, but optimizes performance if it's available.
