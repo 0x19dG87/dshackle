@@ -42,6 +42,7 @@ abstract class DefaultUpstream(
     private val node: QuorumForLabels.QuorumItem?,
     private val chainConfig: ChainsConfig.ChainConfig,
     private val chain: Chain,
+    private val rateLimiter: UpstreamRateLimiter? = null,
 ) : Upstream {
 
     constructor(
@@ -54,7 +55,9 @@ abstract class DefaultUpstream(
         chainConfig: ChainsConfig.ChainConfig,
         chain: Chain,
     ) :
-        this(id, hash, null, UpstreamAvailability.UNAVAILABLE, options, role, targets, node, chainConfig, chain)
+        this(id, hash, null, UpstreamAvailability.UNAVAILABLE, options, role, targets, node, chainConfig, chain, null)
+
+    override fun getRateLimiter(): UpstreamRateLimiter? = rateLimiter
 
     protected val log = LoggerFactory.getLogger(this::class.java)
 

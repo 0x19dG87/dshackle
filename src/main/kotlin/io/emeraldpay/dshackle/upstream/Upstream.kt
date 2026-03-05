@@ -60,6 +60,8 @@ interface Upstream : Lifecycle {
 
     fun getChain(): Chain
 
+    fun getRateLimiter(): UpstreamRateLimiter? = null
+
     fun <T : Upstream> cast(selfType: Class<T>): T
 
     fun nodeId(): Short

@@ -81,6 +81,7 @@ class FilteredApisSpec extends Specification {
                     cs.&finalizationDetectorBuilder,
                     [get: { null }] as java.util.function.Supplier,
                     null,
+                    null,
             )
         }
         def matcher = new Selector.LabelMatcher("test", ["foo"])

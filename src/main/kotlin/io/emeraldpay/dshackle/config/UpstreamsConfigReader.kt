@@ -177,9 +177,10 @@ class UpstreamsConfigReader(
         return getMapping(connConfigNode, "rpc")?.let { node ->
             val maxConnections = getValueAsInt(node, "max-connections") ?: DEFAULT_MAX_CONNECTIONS
             val queueSize = getValueAsInt(node, "queue-size") ?: DEFAULT_QUEUE_SIZE
+            val rateLimit = getValueAsInt(node, "rate-limit")
 
             getValueAsString(node, "url")?.let { url ->
-                val http = UpstreamsConfig.HttpEndpoint(URI(url), maxConnections, queueSize)
+                val http = UpstreamsConfig.HttpEndpoint(URI(url), maxConnections, queueSize, rateLimit)
                 http.basicAuth = authConfigReader.readClientBasicAuth(node)
                 http.tls = authConfigReader.readClientTls(node)
                 http

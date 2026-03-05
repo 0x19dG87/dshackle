@@ -13,6 +13,7 @@ import io.emeraldpay.dshackle.startup.UpstreamChangeEvent.ChangeType.UPDATED
 import io.emeraldpay.dshackle.upstream.Capability
 import io.emeraldpay.dshackle.upstream.DefaultUpstream
 import io.emeraldpay.dshackle.upstream.Head
+import io.emeraldpay.dshackle.upstream.UpstreamRateLimiter
 import io.emeraldpay.dshackle.upstream.IngressSubscription
 import io.emeraldpay.dshackle.upstream.UNKNOWN_CLIENT_VERSION
 import io.emeraldpay.dshackle.upstream.Upstream
@@ -65,7 +66,8 @@ open class GenericUpstream(
     finalizationDetectorBuilder: FinalizationDetectorBuilder,
     versionRules: Supplier<CompatibleVersionsRules?>,
     private val additionalSettings: UpstreamsConfig.AdditionalSettings?,
-) : DefaultUpstream(id, hash, null, UpstreamAvailability.OK, options, role, targets, node, chainConfig, chain),
+    private val rateLimiter: UpstreamRateLimiter? = null,
+) : DefaultUpstream(id, hash, null, UpstreamAvailability.OK, options, role, targets, node, chainConfig, chain, rateLimiter),
     Lifecycle {
     constructor(
         config: UpstreamsConfig.Upstream<*>,
@@ -98,6 +100,9 @@ open class GenericUpstream(
         finalizationDetectorBuilder,
         versionRules,
         config.additionalSettings,
+        UpstreamRateLimiter.create(
+            (config.connection as? UpstreamsConfig.RpcConnection)?.rpc?.rateLimit,
+        ),
     ) {
         rpcMethodsDetector = upstreamRpcMethodsDetectorBuilder(this, config)
         detectRpcMethods(config, buildMethods)

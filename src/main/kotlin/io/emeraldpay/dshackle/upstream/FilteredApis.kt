@@ -180,6 +180,14 @@ class FilteredApis(
             .filter { up ->
                 val upstreamId = up.getId()
 
+                // Skip rate-limited upstreams
+                val rateLimiter = up.getRateLimiter()
+                if (rateLimiter != null && !rateLimiter.tryAcquire()) {
+                    log.debug("Upstream [$upstreamId] is rate-limited, skipping")
+                    this.request(1)
+                    return@filter false
+                }
+
                 // Skip upstream if its provider has already failed
                 val provider = up.getLabels().firstOrNull()?.get("provider")
                 if (provider != null && failedProviders.contains(provider)) {
