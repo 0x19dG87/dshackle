@@ -627,16 +627,18 @@ class DefaultEthereumMethods(
         "eth_getRootHash",
     )
 
-    private val allowedMethods: List<String>
+    private val allowedMethods: Set<String>
 
     init {
-        allowedMethods = anyResponseMethods +
-            firstValueMethods +
-            possibleNotIndexedMethods +
-            specialMethods +
-            headVerifiedMethods -
-            chainUnsupportedMethods(chain) +
-            getChainSpecificMethods(chain)
+        allowedMethods = (
+            anyResponseMethods +
+                firstValueMethods +
+                possibleNotIndexedMethods +
+                specialMethods +
+                headVerifiedMethods -
+                chainUnsupportedMethods(chain) +
+                getChainSpecificMethods(chain)
+            ).toHashSet()
     }
 
     override fun createQuorumFor(method: String): CallQuorum {

@@ -24,6 +24,10 @@ open class HashId(
         val HEX_DIGITS = "0123456789abcdef".toCharArray()
     }
 
+    // Cache the hash code — value is immutable, so this is safe and avoids recomputing
+    // the full byte-array traversal on every HashMap/Caffeine cache lookup.
+    private val cachedHashCode = value.contentHashCode()
+
     override fun toString(): String {
         return toHex()
     }
@@ -54,6 +58,6 @@ open class HashId(
     }
 
     override fun hashCode(): Int {
-        return value.contentHashCode()
+        return cachedHashCode
     }
 }
