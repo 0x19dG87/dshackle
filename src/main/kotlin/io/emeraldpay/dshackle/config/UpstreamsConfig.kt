@@ -134,6 +134,8 @@ data class UpstreamsConfig(
         val maxConnections: Int,
         val queueSize: Int,
         val rateLimit: Int? = null,
+        val syncRateLimit: Int? = null,
+        val laggingRateLimit: Int? = null,
     ) {
         constructor(url: URI) : this(url, DEFAULT_MAX_CONNECTIONS, DEFAULT_QUEUE_SIZE)
 

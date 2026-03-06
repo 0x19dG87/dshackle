@@ -61,6 +61,8 @@ interface Upstream : Lifecycle {
     fun getChain(): Chain
 
     fun getRateLimiter(): UpstreamRateLimiter? = null
+    fun getSyncRateLimiter(): UpstreamRateLimiter? = null
+    fun getLaggingRateLimiter(): UpstreamRateLimiter? = null
 
     fun <T : Upstream> cast(selfType: Class<T>): T
 

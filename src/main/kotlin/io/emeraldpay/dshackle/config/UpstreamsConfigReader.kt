@@ -178,9 +178,11 @@ class UpstreamsConfigReader(
             val maxConnections = getValueAsInt(node, "max-connections") ?: DEFAULT_MAX_CONNECTIONS
             val queueSize = getValueAsInt(node, "queue-size") ?: DEFAULT_QUEUE_SIZE
             val rateLimit = getValueAsInt(node, "rate-limit")
+            val syncRateLimit = getValueAsInt(node, "sync-rate-limit")
+            val laggingRateLimit = getValueAsInt(node, "lagging-rate-limit")
 
             getValueAsString(node, "url")?.let { url ->
-                val http = UpstreamsConfig.HttpEndpoint(URI(url), maxConnections, queueSize, rateLimit)
+                val http = UpstreamsConfig.HttpEndpoint(URI(url), maxConnections, queueSize, rateLimit, syncRateLimit, laggingRateLimit)
                 http.basicAuth = authConfigReader.readClientBasicAuth(node)
                 http.tls = authConfigReader.readClientTls(node)
                 http

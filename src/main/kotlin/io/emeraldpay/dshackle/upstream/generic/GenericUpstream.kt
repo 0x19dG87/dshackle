@@ -67,7 +67,9 @@ open class GenericUpstream(
     versionRules: Supplier<CompatibleVersionsRules?>,
     private val additionalSettings: UpstreamsConfig.AdditionalSettings?,
     private val rateLimiter: UpstreamRateLimiter? = null,
-) : DefaultUpstream(id, hash, null, UpstreamAvailability.OK, options, role, targets, node, chainConfig, chain, rateLimiter),
+    private val syncRateLimiter: UpstreamRateLimiter? = null,
+    private val laggingRateLimiter: UpstreamRateLimiter? = null,
+) : DefaultUpstream(id, hash, null, UpstreamAvailability.OK, options, role, targets, node, chainConfig, chain, rateLimiter, syncRateLimiter, laggingRateLimiter),
     Lifecycle {
     constructor(
         config: UpstreamsConfig.Upstream<*>,
@@ -102,6 +104,12 @@ open class GenericUpstream(
         config.additionalSettings,
         UpstreamRateLimiter.create(
             (config.connection as? UpstreamsConfig.RpcConnection)?.rpc?.rateLimit,
+        ),
+        UpstreamRateLimiter.create(
+            (config.connection as? UpstreamsConfig.RpcConnection)?.rpc?.syncRateLimit,
+        ),
+        UpstreamRateLimiter.create(
+            (config.connection as? UpstreamsConfig.RpcConnection)?.rpc?.laggingRateLimit,
         ),
     ) {
         rpcMethodsDetector = upstreamRpcMethodsDetectorBuilder(this, config)

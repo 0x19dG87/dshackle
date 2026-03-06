@@ -43,6 +43,8 @@ abstract class DefaultUpstream(
     private val chainConfig: ChainsConfig.ChainConfig,
     private val chain: Chain,
     private val rateLimiter: UpstreamRateLimiter? = null,
+    private val syncRateLimiter: UpstreamRateLimiter? = null,
+    private val laggingRateLimiter: UpstreamRateLimiter? = null,
 ) : Upstream {
 
     constructor(
@@ -55,9 +57,11 @@ abstract class DefaultUpstream(
         chainConfig: ChainsConfig.ChainConfig,
         chain: Chain,
     ) :
-        this(id, hash, null, UpstreamAvailability.UNAVAILABLE, options, role, targets, node, chainConfig, chain, null)
+        this(id, hash, null, UpstreamAvailability.UNAVAILABLE, options, role, targets, node, chainConfig, chain, null, null, null)
 
     override fun getRateLimiter(): UpstreamRateLimiter? = rateLimiter
+    override fun getSyncRateLimiter(): UpstreamRateLimiter? = syncRateLimiter
+    override fun getLaggingRateLimiter(): UpstreamRateLimiter? = laggingRateLimiter
 
     protected val log = LoggerFactory.getLogger(this::class.java)
 

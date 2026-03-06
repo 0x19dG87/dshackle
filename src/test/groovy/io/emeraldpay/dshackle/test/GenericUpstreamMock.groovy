@@ -81,6 +81,8 @@ class GenericUpstreamMock extends GenericUpstream {
                 [get: { null }] as java.util.function.Supplier,
                 null,
                 null,
+                null,
+                null,
         )
         this.ethereumHeadMock = this.getHead() as EthereumHeadMock
         setLag(0)

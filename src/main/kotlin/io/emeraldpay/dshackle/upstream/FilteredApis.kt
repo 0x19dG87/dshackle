@@ -120,6 +120,8 @@ class FilteredApis(
 
     // Track upstreams confirmed rate-limited in this subscription to skip them silently on retries
     private val rateLimitedUpstreams = mutableSetOf<String>()
+    private val syncRateLimitedUpstreams = mutableSetOf<String>()
+    private val laggingRateLimitedUpstreams = mutableSetOf<String>()
 
     // Track providers that have failed to skip other upstreams from the same provider
     private val failedProviders = mutableSetOf<String>()
@@ -212,6 +214,46 @@ class FilteredApis(
                         }
                         this.request(1)
                         return@filter false
+                    }
+                }
+
+                val status = up.getStatus()
+
+                // SYNCING rate limiter
+                if (status == UpstreamAvailability.SYNCING) {
+                    val syncRateLimiter = up.getSyncRateLimiter()
+                    if (syncRateLimiter != null) {
+                        if (syncRateLimitedUpstreams.contains(upstreamId)) {
+                            this.request(1)
+                            return@filter false
+                        }
+                        if (!syncRateLimiter.tryAcquire()) {
+                            syncRateLimitedUpstreams.add(upstreamId)
+                            if (shouldLogRateLimit(upstreamId)) {
+                                log.debug("Upstream [$upstreamId] is sync-rate-limited, skipping")
+                            }
+                            this.request(1)
+                            return@filter false
+                        }
+                    }
+                }
+
+                // LAGGING rate limiter
+                if (status == UpstreamAvailability.LAGGING) {
+                    val laggingRateLimiter = up.getLaggingRateLimiter()
+                    if (laggingRateLimiter != null) {
+                        if (laggingRateLimitedUpstreams.contains(upstreamId)) {
+                            this.request(1)
+                            return@filter false
+                        }
+                        if (!laggingRateLimiter.tryAcquire()) {
+                            laggingRateLimitedUpstreams.add(upstreamId)
+                            if (shouldLogRateLimit(upstreamId)) {
+                                log.debug("Upstream [$upstreamId] is lagging-rate-limited, skipping")
+                            }
+                            this.request(1)
+                            return@filter false
+                        }
                     }
                 }
 
