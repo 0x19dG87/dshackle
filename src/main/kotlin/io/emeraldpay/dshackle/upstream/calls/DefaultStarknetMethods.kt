@@ -77,8 +77,10 @@ class DefaultStarknetMethods(
         "starknet_syncing",
     )
 
-    private val allowedMethods: Set<String> = (anyResponseMethods + firstValueMethods + nonNull + nonce +
-        add + nonLagging).toHashSet()
+    private val allowedMethods: Set<String> = (
+        anyResponseMethods + firstValueMethods + nonNull + nonce +
+            add + nonLagging
+        ).toHashSet()
 
     override fun createQuorumFor(method: String): CallQuorum {
         return when {

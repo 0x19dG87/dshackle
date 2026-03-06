@@ -176,26 +176,42 @@ You can specify this modes through `connector-mode` parameter in connection conf
 
 === Rate Limiting
 
-Some upstream providers enforce hard request-rate limits (e.g. 30 req/s on public endpoints).
-The `rate-limit` option lets you cap the number of requests per second Dshackle sends to an individual upstream.
-When an upstream reaches its limit it is skipped immediately and the next available upstream is used instead — no queuing, no errors to the caller.
+Dshackle supports three independent, optional rate-limit fields on the `rpc` block.
+All three use a sliding 1-second token-bucket window and skip the upstream (routing to the next available one) when the budget is exhausted.
+
+[cols="1,3"]
+|===
+| Field | When it applies
+
+| `rate-limit`
+| Always — caps total throughput to this upstream regardless of sync state.
+
+| `sync-rate-limit`
+| Only when the upstream status is *SYNCING* (node is far behind the chain head, e.g. 10k+ blocks). Keeps a syncing node from being overwhelmed while it catches up.
+
+| `lagging-rate-limit`
+| Only when the upstream status is *LAGGING* (node is slightly behind the chain head). Provides a lenient cap so the node can recover without being flooded.
+|===
+
+All three fields are independently optional; any combination is valid.
 
 [source,yaml]
 ----
 upstreams:
-  - id: base-official
-    chain: base
-    role: secondary
+  - id: local-node
+    chain: ethereum
     connection:
-      generic:
+      ethereum:
         rpc:
-          url: "https://mainnet.base.org"
-          rate-limit: 20    # max 20 req/s; excess requests are routed to the next upstream
+          url: "http://localhost:8545"
+          rate-limit: 200          # always-on cap: max 200 req/s
+          sync-rate-limit: 2       # when SYNCING: only 2 req/s
+          lagging-rate-limit: 20   # when LAGGING: only 20 req/s
 ----
 
-* `rate-limit` is optional. Omitting it (or setting it to `0` / negative) means unlimited.
-* The limit applies per upstream instance using a sliding 1-second window.
+* All fields are optional. Omitting a field (or setting it to `0` / negative) means unlimited for that state.
 * If _all_ upstreams in a chain are simultaneously rate-limited, the caller receives the normal "no upstream available" response.
+* `sync-rate-limit` and `lagging-rate-limit` are mutually exclusive at runtime — only the one matching the current upstream status is evaluated.
 
 === Custom Headers
 

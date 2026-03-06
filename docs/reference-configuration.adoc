@@ -924,11 +924,25 @@ rpc:
 ----
 
 | `rpc.rate-limit`
-a| Maximum number of requests per second to send to this upstream.
+a| Maximum number of requests per second to send to this upstream, regardless of its sync state.
 When the limit is reached, the upstream is skipped in favour of the next available upstream rather than queuing or returning an error.
 Useful for public endpoints that enforce hard rate limits (e.g. 30 req/s). +
 Optional. Default is unlimited (`null`). Values ≤ 0 are treated as unlimited. +
-Example: `rate-limit: 20`
+Example: `rate-limit: 200`
+
+| `rpc.sync-rate-limit`
+a| Maximum requests per second when the upstream status is *SYNCING* (node is far behind the chain head).
+Limits traffic to a catching-up node so it can sync without being overwhelmed.
+Only evaluated when the upstream is in SYNCING state; ignored otherwise. +
+Optional. Default is unlimited. +
+Example: `sync-rate-limit: 2`
+
+| `rpc.lagging-rate-limit`
+a| Maximum requests per second when the upstream status is *LAGGING* (node is slightly behind the chain head).
+Provides a lenient cap so a mildly behind node can recover without being flooded.
+Only evaluated when the upstream is in LAGGING state; ignored otherwise. +
+Optional. Default is unlimited. +
+Example: `lagging-rate-limit: 20`
 
 | `ws.url`
 | WebSocket URL to connect to.
