@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
 import java.util.EnumMap
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
@@ -48,6 +49,18 @@ class FilteredApis(
         private const val DEFAULT_RETRY_LIMIT = 3
 
         private const val metricsCode = "select"
+
+        // Throttle rate-limit log messages to at most once per second per upstream across all threads
+        private val lastRateLimitLogTime = ConcurrentHashMap<String, Long>()
+        private const val RATE_LIMIT_LOG_INTERVAL_MS = 1_000L
+
+        private fun shouldLogRateLimit(upstreamId: String): Boolean {
+            val now = System.currentTimeMillis()
+            // compute() is atomic per key — only the first thread in each interval updates and returns `now`
+            return lastRateLimitLogTime.compute(upstreamId) { _, last ->
+                if (last == null || now - last >= RATE_LIMIT_LOG_INTERVAL_MS) now else last
+            } == now
+        }
 
         @JvmStatic
         fun <T> startFrom(upstreams: List<T>, pos: Int): List<T> {
@@ -104,6 +117,9 @@ class FilteredApis(
 
     // Track upstreams that have been tried to prioritize untried ones in retries
     private val triedUpstreams = mutableSetOf<String>()
+
+    // Track upstreams confirmed rate-limited in this subscription to skip them silently on retries
+    private val rateLimitedUpstreams = mutableSetOf<String>()
 
     // Track providers that have failed to skip other upstreams from the same provider
     private val failedProviders = mutableSetOf<String>()
@@ -180,12 +196,23 @@ class FilteredApis(
             .filter { up ->
                 val upstreamId = up.getId()
 
-                // Skip rate-limited upstreams
+                // Skip rate-limited upstreams.
+                // Once an upstream is found rate-limited within this subscription, record it and skip
+                // it silently on subsequent retry rounds to avoid log spam and redundant tryAcquire calls.
                 val rateLimiter = up.getRateLimiter()
-                if (rateLimiter != null && !rateLimiter.tryAcquire()) {
-                    log.debug("Upstream [$upstreamId] is rate-limited, skipping")
-                    this.request(1)
-                    return@filter false
+                if (rateLimiter != null) {
+                    if (rateLimitedUpstreams.contains(upstreamId)) {
+                        this.request(1)
+                        return@filter false
+                    }
+                    if (!rateLimiter.tryAcquire()) {
+                        rateLimitedUpstreams.add(upstreamId)
+                        if (shouldLogRateLimit(upstreamId)) {
+                            log.debug("Upstream [$upstreamId] is rate-limited, skipping")
+                        }
+                        this.request(1)
+                        return@filter false
+                    }
                 }
 
                 // Skip upstream if its provider has already failed

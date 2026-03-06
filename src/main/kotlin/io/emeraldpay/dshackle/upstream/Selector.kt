@@ -306,14 +306,15 @@ class Selector {
     ) : Matcher() {
 
         override fun matchesWithCause(up: Upstream): MatchesResponse {
-            val responses = matchers.map { it.matchesWithCause(up) }
-            return if (responses.all { it is Success }) {
-                Success
-            } else {
-                MatchesResponse.MultiResponse(
-                    responses.filter { it !is Success }.toSet(),
-                )
+            var failures: MutableSet<MatchesResponse>? = null
+            for (matcher in matchers) {
+                val response = matcher.matchesWithCause(up)
+                if (response !is Success) {
+                    if (failures == null) failures = LinkedHashSet()
+                    failures.add(response)
+                }
             }
+            return if (failures == null) Success else MatchesResponse.MultiResponse(failures)
         }
 
         fun getMatchers(): Collection<Matcher> {
@@ -361,14 +362,15 @@ class Selector {
     abstract class LabelSelectorMatcher : Matcher() {
 
         override fun matchesWithCause(up: Upstream): MatchesResponse {
-            val labelsResponses = up.getLabels().map { matchesWithCause(it) }
-            return if (labelsResponses.any { it is Success }) {
-                Success
-            } else {
-                MatchesResponse.MultiResponse(
-                    labelsResponses.filter { it !is Success }.toSet(),
-                )
+            val labels = up.getLabels()
+            var failures: MutableSet<MatchesResponse>? = null
+            for (label in labels) {
+                val response = matchesWithCause(label)
+                if (response is Success) return Success
+                if (failures == null) failures = LinkedHashSet()
+                failures.add(response)
             }
+            return MatchesResponse.MultiResponse(failures ?: emptySet())
         }
 
         abstract fun matchesWithCause(labels: UpstreamsConfig.Labels): MatchesResponse
