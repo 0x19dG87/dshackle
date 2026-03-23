@@ -360,7 +360,7 @@ open class NativeCall(
                 upstream,
                 Selector.UpstreamFilter(upstreamFilter?.sort ?: Selector.Sort.default, matcher.build()),
                 callQuorum,
-                parsedCallDetails(requestItem, availableMethods.translateMethod(method)),
+                parsedCallDetails(requestItem),
                 requestDecorator,
                 resultDecorator,
                 selector,

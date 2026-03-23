@@ -72,9 +72,11 @@ class BroadcastReader(
     private fun execute(
         key: ChainRequest,
         upstream: Upstream,
-    ): Mono<BroadcastResponse> =
-        upstream.getIngressReader()
-            .read(key)
+    ): Mono<BroadcastResponse> {
+        val translatedMethod = upstream.getMethods().translateMethod(key.method)
+        val translatedKey = if (translatedMethod != key.method) key.copy(method = translatedMethod) else key
+        return upstream.getIngressReader()
+            .read(translatedKey)
             .map { BroadcastResponse(it, upstream) }
             .onErrorResume {
                 errorHandler.handle(upstream, key, it.message)
@@ -84,6 +86,7 @@ class BroadcastReader(
                     BroadcastResponse(ChainResponse(null, getError(key, it).error), upstream),
                 )
             }
+    }
 
     private class BroadcastResponse(
         val jsonRpcResponse: ChainResponse,

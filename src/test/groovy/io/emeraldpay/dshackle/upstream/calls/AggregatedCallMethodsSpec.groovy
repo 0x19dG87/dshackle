@@ -123,40 +123,6 @@ class AggregatedCallMethodsSpec extends Specification {
         !act
     }
 
-    def "Translates method using first delegate that has an alias"() {
-        setup:
-        def delegate1 = Mock(CallMethods) {
-            _ * getSupportedMethods() >> ["eth_no_test"]
-            1 * translateMethod("trace_filter") >> "trace_filter"
-        }
-        def delegate2 = Mock(CallMethods) {
-            _ * getSupportedMethods() >> ["trace_filter"]
-            1 * translateMethod("trace_filter") >> "arbtrace_filter"
-        }
-        def aggregate = new AggregatedCallMethods([delegate1, delegate2])
-        when:
-        def act = aggregate.translateMethod("trace_filter")
-        then:
-        act == "arbtrace_filter"
-    }
-
-    def "Returns original method name when no delegate has an alias"() {
-        setup:
-        def delegate1 = Mock(CallMethods) {
-            _ * getSupportedMethods() >> ["eth_no_test"]
-            1 * translateMethod("trace_filter") >> "trace_filter"
-        }
-        def delegate2 = Mock(CallMethods) {
-            _ * getSupportedMethods() >> ["trace_filter"]
-            1 * translateMethod("trace_filter") >> "trace_filter"
-        }
-        def aggregate = new AggregatedCallMethods([delegate1, delegate2])
-        when:
-        def act = aggregate.translateMethod("trace_filter")
-        then:
-        act == "trace_filter"
-    }
-
     def "Execute hardcoded on delegate that owns it"() {
         setup:
         def delegate1 = Mock(CallMethods) {

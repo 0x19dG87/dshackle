@@ -27,6 +27,7 @@ import io.emeraldpay.dshackle.upstream.ChainRequest
 import io.emeraldpay.dshackle.upstream.ChainResponse
 import io.emeraldpay.dshackle.upstream.UpstreamAvailability
 import io.emeraldpay.dshackle.upstream.rpcclient.ListParams
+import io.emeraldpay.dshackle.upstream.calls.AggregatedCallMethods
 import io.emeraldpay.dshackle.upstream.ethereum.rpc.RpcException
 import io.emeraldpay.dshackle.upstream.ethereum.rpc.RpcResponseError
 import reactor.core.publisher.Mono
@@ -47,6 +48,7 @@ class QuorumRequestReaderSpec extends Specification {
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
             _ * getChain() >> Chain.ETHEREUM__MAINNET
             _ * getLabels() >> []
+            _ * getMethods() >> new AggregatedCallMethods([])
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_test", new ListParams())) >> Mono.just(ChainResponse.ok("1"))
             }
@@ -83,6 +85,7 @@ class QuorumRequestReaderSpec extends Specification {
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
             _ * getChain() >> Chain.ETHEREUM__MAINNET
             _ * getLabels() >> []
+            _ * getMethods() >> new AggregatedCallMethods([])
             _ * getIngressReader() >> api
         }
         def apis = new FilteredApis(
@@ -123,6 +126,7 @@ class QuorumRequestReaderSpec extends Specification {
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
             _ * getChain() >> Chain.ETHEREUM__MAINNET
             _ * getLabels() >> []
+            _ * getMethods() >> new AggregatedCallMethods([])
             _ * getIngressReader() >> api
         }
         def apis = new FilteredApis(
@@ -153,6 +157,7 @@ class QuorumRequestReaderSpec extends Specification {
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
             _ * getChain() >> Chain.ETHEREUM__MAINNET
             _ * getLabels() >> []
+            _ * getMethods() >> new AggregatedCallMethods([])
             _ * getIngressReader() >> Mock(Reader) {
                 2 * read(new ChainRequest("eth_test", new ListParams())) >>> [
                         Mono.just(ChainResponse.ok("null")),
@@ -188,6 +193,7 @@ class QuorumRequestReaderSpec extends Specification {
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
             _ * getChain() >> Chain.ETHEREUM__MAINNET
             _ * getLabels() >> []
+            _ * getMethods() >> new AggregatedCallMethods([])
             _ * getIngressReader() >> Mock(Reader) {
                 2 * read(new ChainRequest("eth_test", new ListParams())) >>> [
                         Mono.just(ChainResponse.error(1, "test")),
@@ -228,6 +234,7 @@ class QuorumRequestReaderSpec extends Specification {
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
             _ * getChain() >> Chain.ETHEREUM__MAINNET
             _ * getLabels() >> []
+            _ * getMethods() >> new AggregatedCallMethods([])
             _ * getIngressReader() >> api
         }
         def apis = new FilteredApis(
@@ -261,6 +268,7 @@ class QuorumRequestReaderSpec extends Specification {
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
             _ * getChain() >> Chain.ETHEREUM__MAINNET
             _ * getLabels() >> []
+            _ * getMethods() >> new AggregatedCallMethods([])
             _ * getIngressReader() >> api
         }
         def apis = new FilteredApis(
@@ -292,6 +300,7 @@ class QuorumRequestReaderSpec extends Specification {
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
             _ * getChain() >> Chain.ETHEREUM__MAINNET
             _ * getLabels() >> []
+            _ * getMethods() >> new AggregatedCallMethods([])
             _ * getIngressReader() >> Mock(Reader) {
                 _ * read(new ChainRequest("eth_test", new ListParams())) >>> [
                         Mono.just(ChainResponse.error(-3010, "test")),
@@ -323,6 +332,7 @@ class QuorumRequestReaderSpec extends Specification {
             _ * isAvailable() >> false
             _ * getRole() >> UpstreamsConfig.UpstreamRole.PRIMARY
             _ * getLabels() >> []
+            _ * getMethods() >> new AggregatedCallMethods([])
             _ * getIngressReader() >> api
         }
         def apis = new FilteredApis(

@@ -175,8 +175,10 @@ class QuorumRequestReader(
             SPAN_REQUEST_API_TYPE to apiReader.javaClass.name,
             SPAN_REQUEST_UPSTREAM_ID to api.getId(),
         )
+        val translatedMethod = api.getMethods().translateMethod(key.method)
+        val translatedKey = if (translatedMethod != key.method) key.copy(method = translatedMethod) else key
         return apiReader
-            .read(key)
+            .read(translatedKey)
             .flatMap { response ->
                 log.trace("Received response from upstream ${api.getId()} for method ${key.method}")
                 response.requireResult()

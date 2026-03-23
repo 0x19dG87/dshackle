@@ -388,7 +388,7 @@ class NativeCallSpec extends Specification {
         }
     }
 
-    def "Prepare call translates aliased method name for upstream"() {
+    def "Prepare call keeps original method name when alias is configured (translation happens per-upstream in QuorumRequestReader)"() {
         setup:
         def methods = new ManagedCallMethods(
                 new DefaultEthereumMethods(Chain.ETHEREUM__MAINNET),
@@ -417,7 +417,7 @@ class NativeCallSpec extends Specification {
                 .collectList().block(Duration.ofSeconds(1)).first()
         then:
         act instanceof NativeCall.ValidCallContext
-        act.payload.method == "arbtrace_filter"
+        act.payload.method == "trace_filter"
     }
 
     def "Prepare call adds height selector for not-lagging quorum"() {
