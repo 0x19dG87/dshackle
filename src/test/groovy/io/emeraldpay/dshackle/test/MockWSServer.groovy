@@ -21,6 +21,7 @@ class MockWSServer extends WebSocketServer {
 
     MockWSServer(int port) {
         super(new InetSocketAddress("127.0.0.1", port))
+        setReuseAddr(true)
     }
 
     void log(String msg) {
