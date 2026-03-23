@@ -51,7 +51,7 @@ class BasicEthUpstreamRpcMethodsDetector(
                 if (config.methodGroups?.disabled?.any { group -> method.startsWith(group) } == true) {
                     return@associateWith false
                 }
-                modules.any { (module, _) -> method.startsWith(module) }
+                modules.any { (module, _) -> method.startsWith("${module}_") }
             }
     }
 }

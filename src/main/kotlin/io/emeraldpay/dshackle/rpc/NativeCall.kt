@@ -94,18 +94,20 @@ open class NativeCall(
                     }
                     .doOnNext {
                             callRes ->
-                        val isMethodNotAvailable = callRes.error?.message?.contains(Regex("method ([A-Za-z0-9_]+) does not exist/is not available")) == true
+                        val methodNotAvailableMatch = Regex("method ([A-Za-z0-9_]+) does not exist/is not available").find(callRes.error?.message ?: "")
                         val isMethodDisabled = callRes.error?.message?.contains("method is disabled", ignoreCase = true) == true
                         val isTraceOrDebugMethod = it is ValidCallContext<*> && it.payload is ParsedCallDetails && (it.payload.method.startsWith("trace_") || it.payload.method.startsWith("debug_"))
 
-                        if (isMethodNotAvailable || (isMethodDisabled && isTraceOrDebugMethod)) {
-                            if (it is ValidCallContext<*>) {
-                                if (it.payload is ParsedCallDetails) {
-                                    log.error("nativeCallResult method ${it.payload.method} of ${it.upstream.getId()} is not available, disabling")
-                                    val cm = (it.upstream.getMethods() as DisabledCallMethods)
-                                    cm.disableMethodTemporarily(it.payload.method)
-                                    it.upstream.updateMethods(cm)
-                                }
+                        if (it is ValidCallContext<*> && it.payload is ParsedCallDetails) {
+                            val originalMethod = it.payload.method
+                            // Only disable if the failed method matches the original request, not a translated alias
+                            val isMethodNotAvailable = methodNotAvailableMatch != null &&
+                                methodNotAvailableMatch.groupValues[1] == originalMethod
+                            if (isMethodNotAvailable || (isMethodDisabled && isTraceOrDebugMethod)) {
+                                log.error("nativeCallResult method $originalMethod of ${it.upstream.getId()} is not available, disabling")
+                                val cm = (it.upstream.getMethods() as DisabledCallMethods)
+                                cm.disableMethodTemporarily(originalMethod)
+                                it.upstream.updateMethods(cm)
                             }
                         }
                     }
