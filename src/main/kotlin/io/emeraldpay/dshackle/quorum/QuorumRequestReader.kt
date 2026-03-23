@@ -170,12 +170,19 @@ class QuorumRequestReader(
             key.method,
         )
 
+        val methods = api.getMethods()
+        if (!methods.isCallable(key.method) && !methods.isHardcoded(key.method)) {
+            log.trace("Skipping upstream ${api.getId()} - method ${key.method} is not callable on this upstream")
+            apiControl.request(1)
+            return Mono.empty()
+        }
+
         val apiReader = api.getIngressReader()
         val spanParams = mapOf(
             SPAN_REQUEST_API_TYPE to apiReader.javaClass.name,
             SPAN_REQUEST_UPSTREAM_ID to api.getId(),
         )
-        val translatedMethod = api.getMethods().translateMethod(key.method)
+        val translatedMethod = methods.translateMethod(key.method)
         val translatedKey = if (translatedMethod != key.method) key.copy(method = translatedMethod) else key
         return apiReader
             .read(translatedKey)

@@ -6,7 +6,7 @@ import io.emeraldpay.dshackle.upstream.Upstream
 import io.emeraldpay.dshackle.upstream.ChainException
 import io.emeraldpay.dshackle.upstream.ChainRequest
 import io.emeraldpay.dshackle.upstream.ChainResponse
-import io.emeraldpay.dshackle.upstream.calls.AggregatedCallMethods
+import io.emeraldpay.dshackle.upstream.calls.DirectCallMethods
 import io.emeraldpay.dshackle.upstream.rpcclient.ListParams
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
@@ -22,7 +22,7 @@ class BroadcastReaderSpec extends Specification {
         def up = Mock(Upstream) {
             1 * isAvailable() >> true
             _ * getId() >> "id"
-            _ * getMethods() >> new AggregatedCallMethods([])
+            _ * getMethods() >> new DirectCallMethods(["eth_sendRawTransaction"])
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"]))) >>
                         Mono.just(new ChainResponse(result, null))
@@ -31,7 +31,7 @@ class BroadcastReaderSpec extends Specification {
         def up1 = Mock(Upstream) {
             1 * isAvailable() >> true
             _ * getId() >> "id"
-            _ * getMethods() >> new AggregatedCallMethods([])
+            _ * getMethods() >> new DirectCallMethods(["eth_sendRawTransaction"])
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"]))) >>
                         Mono.just(new ChainResponse(result, null))
@@ -40,7 +40,7 @@ class BroadcastReaderSpec extends Specification {
         def up2 = Mock(Upstream) {
             1 * isAvailable() >> true
             _ * getId() >> "id"
-            _ * getMethods() >> new AggregatedCallMethods([])
+            _ * getMethods() >> new DirectCallMethods(["eth_sendRawTransaction"])
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"]))) >>
                         Mono.just(new ChainResponse(result, null))
@@ -64,7 +64,7 @@ class BroadcastReaderSpec extends Specification {
         def up = Mock(Upstream) {
             1 * isAvailable() >> true
             _ * getId() >> "id"
-            _ * getMethods() >> new AggregatedCallMethods([])
+            _ * getMethods() >> new DirectCallMethods(["eth_sendRawTransaction"])
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"]))) >>
                         Mono.just(new ChainResponse(result, null))
@@ -73,7 +73,7 @@ class BroadcastReaderSpec extends Specification {
         def up1 = Mock(Upstream) {
             1 * isAvailable() >> true
             _ * getId() >> "id"
-            _ * getMethods() >> new AggregatedCallMethods([])
+            _ * getMethods() >> new DirectCallMethods(["eth_sendRawTransaction"])
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"]))) >>
                         Mono.error(new ChainException(1, "too low"))
@@ -82,7 +82,7 @@ class BroadcastReaderSpec extends Specification {
         def up2 = Mock(Upstream) {
             1 * isAvailable() >> true
             _ * getId() >> "id"
-            _ * getMethods() >> new AggregatedCallMethods([])
+            _ * getMethods() >> new DirectCallMethods(["eth_sendRawTransaction"])
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"]))) >>
                         Mono.error(new ChainException(1, "too low"))            }
@@ -105,7 +105,7 @@ class BroadcastReaderSpec extends Specification {
         def up = Mock(Upstream) {
             1 * isAvailable() >> true
             _ * getId() >> "id"
-            _ * getMethods() >> new AggregatedCallMethods([])
+            _ * getMethods() >> new DirectCallMethods(["eth_sendRawTransaction"])
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"]))) >>
                         Mono.just(new ChainResponse(result, null))
@@ -138,7 +138,7 @@ class BroadcastReaderSpec extends Specification {
         def up = Mock(Upstream) {
             1 * isAvailable() >> true
             _ * getId() >> "id"
-            _ * getMethods() >> new AggregatedCallMethods([])
+            _ * getMethods() >> new DirectCallMethods(["eth_sendRawTransaction"])
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"]))) >>
                         Mono.error(new ChainException(1, "too low"))
@@ -147,7 +147,7 @@ class BroadcastReaderSpec extends Specification {
         def up1 = Mock(Upstream) {
             1 * isAvailable() >> true
             _ * getId() >> "id"
-            _ * getMethods() >> new AggregatedCallMethods([])
+            _ * getMethods() >> new DirectCallMethods(["eth_sendRawTransaction"])
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"]))) >>
                         Mono.error(new ChainException(1, "too low"))
@@ -156,7 +156,7 @@ class BroadcastReaderSpec extends Specification {
         def up2 = Mock(Upstream) {
             1 * isAvailable() >> true
             _ * getId() >> "id"
-            _ * getMethods() >> new AggregatedCallMethods([])
+            _ * getMethods() >> new DirectCallMethods(["eth_sendRawTransaction"])
             1 * getIngressReader() >> Mock(Reader) {
                 1 * read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"]))) >>
                         Mono.error(new ChainException(1, "too low"))
