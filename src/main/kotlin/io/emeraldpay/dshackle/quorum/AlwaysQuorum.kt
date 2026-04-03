@@ -43,7 +43,9 @@ open class AlwaysQuorum : CallQuorum {
 
     private fun isNonRetryableError(error: ChainCallError): Boolean {
         // Check message first - execution reverted can come with various codes
-        if (error.message.contains("execution reverted", ignoreCase = true)) {
+        if (error.message.contains("execution reverted", ignoreCase = true) ||
+            error.message.contains("VM Exception while processing transaction: revert", ignoreCase = true)
+        ) {
             return true
         }
         // Non-retryable error codes
