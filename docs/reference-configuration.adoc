@@ -819,6 +819,16 @@ See xref:09-quorum-and-selectors.adoc[Quorum and Selectors]
 `not_empty` - accept not _null_ value, otherwise retry another upstream;
 `not_lagging` - accept response only from a fully synced upstream.
 
+| `additional-settings`
+| no
+| Additional upstream settings. Currently supports `manual-lower-bounds`. See xref:04-upstream-config.adoc#_manual_lower_bounds[Manual Lower Bounds]
+
+| `additional-settings.manual-lower-bounds`
+| no
+| Map of lower bound overrides by type (`block`, `logs`, `receipts`, `tx`, `state`).
+Each entry has `type` (`FIXED` or `HEAD`) and `value` (block number or negative offset from head).
+Prevents routing requests for historical data to nodes that don't have it.
+
 | `connection.generic`
 | yes
 | Generic connection configuration for most of networks e.g. Ethereum

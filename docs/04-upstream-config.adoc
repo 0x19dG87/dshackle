@@ -433,6 +433,83 @@ For JSON RPC and Websockets a Basic Authentication can be used:
 - `username` - username
 - `password` - password
 
+=== Manual Lower Bounds
+
+Dshackle automatically detects the earliest block available on each upstream (archive depth) by probing the node at startup.
+However, you can override or pre-set these bounds using `additional-settings.manual-lower-bounds` to avoid routing requests for historical data to nodes that don't have it.
+
+This is especially important for nodes that only cover part of a chain's history — for example, a post-Bedrock Optimism node that does not store pre-Bedrock blocks (before block 105,235,063).
+Without a manual lower bound, Dshackle may still try such a node for old blocks, which causes errors, populates internal failure caches, and can temporarily prevent retries to other upstreams.
+
+Each bound type corresponds to a different kind of historical data:
+
+[cols="1,4"]
+|===
+| Type | Data covered
+
+| `block` | Block headers and body (`eth_getBlockByHash`, `eth_getBlockByNumber`)
+| `logs` | Event log index (`eth_getLogs`)
+| `receipts` | Transaction receipts (`eth_getTransactionReceipt`, `eth_getBlockReceipts`)
+| `tx` | Transaction index (`eth_getTransactionByHash`)
+| `state` | Historical state for calls (`eth_call`, `eth_getStorageAt` at a past block)
+|===
+
+Supported bound types:
+
+[cols="1,4"]
+|===
+| Type | Meaning
+
+| `FIXED` | A fixed block number. The upstream will not be used for requests below this block.
+| `HEAD` | A negative offset from the current chain head. E.g. `-1000` means "only serve the last 1000 blocks".
+|===
+
+.Example: post-Bedrock Optimism node without pre-Bedrock history
+[source,yaml]
+----
+upstreams:
+  - id: optimism-reth
+    chain: optimism
+    connection:
+      generic:
+        rpc:
+          url: "http://localhost:9545"
+    additional-settings:
+      manual-lower-bounds:
+        block:
+          type: FIXED
+          value: 105235063   # Optimism Bedrock upgrade block
+        logs:
+          type: FIXED
+          value: 105235063
+        receipts:
+          type: FIXED
+          value: 105235063
+----
+
+.Example: non-archive node serving only recent blocks (last 128)
+[source,yaml]
+----
+upstreams:
+  - id: pruned-node
+    chain: ethereum
+    connection:
+      generic:
+        rpc:
+          url: "http://localhost:8545"
+    additional-settings:
+      manual-lower-bounds:
+        block:
+          type: HEAD
+          value: -128
+        state:
+          type: HEAD
+          value: -128
+----
+
+NOTE: When no manual bound is set, Dshackle auto-detects the lower bound by binary-searching the node's available history.
+The manual bound takes effect immediately at startup, before auto-detection runs, which prevents routing errors during the initial period.
+
 === Chains specific configuration
 We can use chain settings to specify chain specific behavior, for example rules for dshackle to work with upstream statuses
 
