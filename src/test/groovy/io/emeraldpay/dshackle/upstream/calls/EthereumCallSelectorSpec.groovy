@@ -20,7 +20,6 @@ import io.emeraldpay.dshackle.cache.HeightByHashMemCache
 import io.emeraldpay.dshackle.data.BlockId
 import io.emeraldpay.dshackle.upstream.Head
 import io.emeraldpay.dshackle.upstream.Selector
-import io.emeraldpay.dshackle.upstream.lowerbound.LowerBoundType
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import spock.lang.Specification
@@ -91,7 +90,7 @@ class EthereumCallSelectorSpec extends Specification {
         when:
         def act = callSelector.getMatcher("eth_getBalance", '["0x0000", "0xc90f1c8c125a4d5b90742f16947bdb1d10516f173fd7fc51223d10499de2a812"]', head, false).block()
         then:
-        act == new Selector.MultiMatcher([new Selector.HeightMatcher(8606722), new Selector.LowerHeightMatcher(8606722L, LowerBoundType.BLOCK, 0L, 0L)])
+        act == new Selector.MultiMatcher([new Selector.HeightMatcher(8606722), new Selector.ArchiveBoundMatcher(8606722L, io.emeraldpay.dshackle.upstream.lowerbound.LowerBoundType.BLOCK)])
     }
 
     def "No matcher for invalid height"() {
@@ -168,7 +167,7 @@ class EthereumCallSelectorSpec extends Specification {
                 '["0x0000", {"blockHash": "0xa6af163aab691919c595e2a466f0a7b01f1dff8cfd9631dee811df57064c2d32"}]', head, false)
                 .block()
         then:
-        act == new Selector.MultiMatcher([new Selector.HeightMatcher(12079192), new Selector.LowerHeightMatcher(12079192L, LowerBoundType.BLOCK, 0L, 0L)])
+        act == new Selector.MultiMatcher([new Selector.HeightMatcher(12079192), new Selector.ArchiveBoundMatcher(12079192L, io.emeraldpay.dshackle.upstream.lowerbound.LowerBoundType.BLOCK)])
     }
 
     def "Get empty matcher for block tag with passthrough arg"() {
@@ -237,7 +236,7 @@ class EthereumCallSelectorSpec extends Specification {
 
         then:
         StepVerifier.create(act)
-                .expectNext(new Selector.MultiMatcher([new Selector.HeightMatcher(12079192L), new Selector.LowerHeightMatcher(12079192L, LowerBoundType.BLOCK, 0L, 0L)]))
+                .expectNext(new Selector.MultiMatcher([new Selector.HeightMatcher(12079192L), new Selector.ArchiveBoundMatcher(12079192L, io.emeraldpay.dshackle.upstream.lowerbound.LowerBoundType.BLOCK)]))
                 .expectComplete()
                 .verify(Duration.ofSeconds(1))
 
@@ -367,7 +366,7 @@ class EthereumCallSelectorSpec extends Specification {
         "eth_getLogs" | '[{"toBlock":"0xfbfe3b"}]' | new Selector.HeightMatcher(16514619L)
         "eth_getLogs" | '[{"toBlock":"latest"}]' | new Selector.HeightMatcher(17654321L)
         "eth_getLogs" | '[{"toBlock":"earliest"}]' | new Selector.HeightMatcher(0L)
-        "eth_getLogs" | '[{"blockHash":"0xa29ddfc1b37d0b6d0c4a670fa54778656e890d8bbc1b3a6f7d913bc9eb5e03a1"}]' | new Selector.MultiMatcher([new Selector.HeightMatcher(46208179L), new Selector.LowerHeightMatcher(46208179L, LowerBoundType.BLOCK, 0L, 0L)])
+        "eth_getLogs" | '[{"blockHash":"0xa29ddfc1b37d0b6d0c4a670fa54778656e890d8bbc1b3a6f7d913bc9eb5e03a1"}]' | new Selector.MultiMatcher([new Selector.HeightMatcher(46208179L), new Selector.ArchiveBoundMatcher(46208179L, io.emeraldpay.dshackle.upstream.lowerbound.LowerBoundType.BLOCK)])
         "eth_newFilter" | '[{"toBlock":"0xfbfe2b", "toBlock":"0xfbfe3b"}]' | new Selector.HeightMatcher(16514619L)
         "eth_newFilter" | '[{"toBlock":"0xfbfe3b", "toBlock":"latest"}]' | new Selector.HeightMatcher(17654321L)
         "eth_newFilter" | '[{"toBlock":"0xfbfe3b", "toBlock":"earliest"}]' | new Selector.HeightMatcher(0L)

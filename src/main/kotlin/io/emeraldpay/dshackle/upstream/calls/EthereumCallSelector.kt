@@ -169,7 +169,7 @@ class EthereumCallSelector(
                     Selector.MultiMatcher(
                         listOf(
                             Selector.HeightMatcher(height),
-                            Selector.LowerHeightMatcher(height, LowerBoundType.BLOCK),
+                            Selector.ArchiveBoundMatcher(height, LowerBoundType.BLOCK),
                         ),
                     )
                 }

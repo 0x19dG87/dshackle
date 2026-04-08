@@ -625,6 +625,30 @@ class Selector {
         }
     }
 
+    /**
+     * Like [LowerHeightMatcher] but treats a predicted lower bound of 0 (not yet detected) as "unknown — allow".
+     * Used for HTTP JSON-RPC routing where we want to exclude upstreams we KNOW can't serve a block,
+     * but still try upstreams whose archive depth hasn't been determined yet.
+     */
+    data class ArchiveBoundMatcher(
+        private val requestedHeight: Long,
+        private val boundType: LowerBoundType,
+    ) : Matcher() {
+        override fun matchesWithCause(up: Upstream): MatchesResponse {
+            val lowerBound = up.predictLowerBound(boundType, 0)
+            // lowerBound == 0 means not yet detected — allow the upstream to be tried
+            return if (lowerBound == 0L || requestedHeight >= lowerBound) {
+                Success
+            } else {
+                LowerHeightResponse(requestedHeight, lowerBound, boundType)
+            }
+        }
+
+        override fun describeInternal(): String = "archive bound $requestedHeight"
+
+        override fun toString(): String = "Matcher: ${describeInternal()}"
+    }
+
     class HeightMatcher(val height: Long) : Matcher() {
 
         override fun matchesWithCause(up: Upstream): MatchesResponse {
