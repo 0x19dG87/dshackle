@@ -21,6 +21,7 @@ import io.emeraldpay.dshackle.data.BlockId
 import io.emeraldpay.dshackle.upstream.Head
 import io.emeraldpay.dshackle.upstream.Selector
 import io.emeraldpay.dshackle.upstream.ethereum.hex.HexQuantity
+import io.emeraldpay.dshackle.upstream.lowerbound.LowerBoundType
 import org.bouncycastle.util.encoders.DecoderException
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Mono
@@ -164,7 +165,14 @@ class EthereumCallSelector(
             caches.getLastHeightByHash()
                 .read(BlockId.from(blockHash))
                 .onErrorResume { Mono.empty() }
-                .map<Selector.Matcher> { Selector.HeightMatcher(it) }
+                .map<Selector.Matcher> { height ->
+                    Selector.MultiMatcher(
+                        listOf(
+                            Selector.HeightMatcher(height),
+                            Selector.LowerHeightMatcher(height, LowerBoundType.BLOCK),
+                        ),
+                    )
+                }
                 .switchIfEmpty(
                     // Block hash not in cache - allow all upstreams to be tried.
                     // Role-based ordering and retry mechanism will handle routing.
