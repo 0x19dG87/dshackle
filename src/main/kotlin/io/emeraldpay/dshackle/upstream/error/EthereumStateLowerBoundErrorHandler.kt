@@ -27,8 +27,10 @@ object EthereumStateLowerBoundErrorHandler : EthereumLowerBoundErrorHandler() {
 
     override fun canHandle(request: ChainRequest, errorMessage: String?): Boolean {
         return !(errorMessage?.contains("execution reverted") ?: false) &&
-            (stateErrors.any { errorMessage?.contains(it) ?: false } ||
-                stateErrorRegexps.any { errorMessage?.contains(it) ?: false }) &&
+            (
+                stateErrors.any { errorMessage?.contains(it) ?: false } ||
+                    stateErrorRegexps.any { errorMessage?.contains(it) ?: false }
+                ) &&
             applicableMethods.contains(request.method)
     }
 
