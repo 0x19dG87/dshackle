@@ -20,9 +20,15 @@ object EthereumStateLowerBoundErrorHandler : EthereumLowerBoundErrorHandler() {
 
     private val applicableMethods = firstTagIndexMethods + secondTagIndexMethods
 
+    private val stateErrorRegexps = setOf(
+        Regex("historical state .+ is not available"),
+        Regex("state .+ is not available"),
+    )
+
     override fun canHandle(request: ChainRequest, errorMessage: String?): Boolean {
         return !(errorMessage?.contains("execution reverted") ?: false) &&
-            stateErrors.any { errorMessage?.contains(it) ?: false } &&
+            (stateErrors.any { errorMessage?.contains(it) ?: false } ||
+                stateErrorRegexps.any { errorMessage?.contains(it) ?: false }) &&
             applicableMethods.contains(request.method)
     }
 

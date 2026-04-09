@@ -28,6 +28,17 @@ class EthereumStateLowerBoundErrorHandlerTest {
         verify(upstream).updateLowerBound(213229736, LowerBoundType.STATE)
     }
 
+    @ParameterizedTest
+    @MethodSource("requests")
+    fun `update lower bound on historical state with hash in error`(request: ChainRequest) {
+        val upstream = mock<Upstream>()
+        val handler = EthereumStateLowerBoundErrorHandler
+
+        handler.handle(upstream, request, "historical state e3ecb12c6db24407ecb69d5bbb1fa23edbd33a2335ef3030b08fd850997a0865 is not available")
+
+        verify(upstream).updateLowerBound(213229736, LowerBoundType.STATE)
+    }
+
     @Test
     fun `no update lower bound if error is not about state`() {
         val upstream = mock<Upstream>()
