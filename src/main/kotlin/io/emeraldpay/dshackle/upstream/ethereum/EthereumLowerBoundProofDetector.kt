@@ -34,6 +34,7 @@ class EthereumLowerBoundProofDetector(
             "historical state not available in path scheme yet",
             "required historical state unavailable",
             "evm module does not exist on height",
+            "First available state is", // drpc polygon — node has limited proof window
         )
     }
 
@@ -55,26 +56,43 @@ class EthereumLowerBoundProofDetector(
         return 3
     }
     override fun internalDetectLowerBound(): Flux<LowerBoundData> {
-        return recursiveLowerBound.recursiveDetectLowerBound { block ->
-            if (block == 0L) {
-                Mono.just(ChainResponse(ByteArray(0), null))
-            } else {
-                val request = ChainRequest(
-                    "eth_getProof",
-                    ListParams("0x0000000000000000000000000000000000000000", listOf<Any>(), block.toHex()),
-                )
-                upstream.getIngressReader()
-                    .read(request)
-                    .timeout(Defaults.internalCallsTimeout)
-                    .doOnNext {
-                        if (it.hasResult() && it.getResult().contentEquals("null".toByteArray())) {
-                            throw IllegalStateException(NO_PROOF_DATA)
-                        }
-                    }
+        val latestProofRequest = ChainRequest(
+            "eth_getProof",
+            ListParams("0x0000000000000000000000000000000000000000", listOf<Any>(), "latest"),
+        )
+        return upstream.getIngressReader()
+            .read(latestProofRequest)
+            .timeout(Defaults.internalCallsTimeout)
+            .onErrorResume { err ->
+                if (NO_PROOF_ERRORS.any { err.message?.contains(it, true) ?: false }) {
+                    log.warn("Upstream {} does not support eth_getProof, skipping proof lower bound detection", upstream.getId())
+                    Mono.empty()
+                } else {
+                    Mono.error(err)
+                }
             }
-        }.flatMap {
-            Flux.just(it, lowerBoundFrom(it, LowerBoundType.PROOF))
-        }
+            .flatMapMany {
+                recursiveLowerBound.recursiveDetectLowerBound { block ->
+                    if (block == 0L) {
+                        Mono.just(ChainResponse(ByteArray(0), null))
+                    } else {
+                        val request = ChainRequest(
+                            "eth_getProof",
+                            ListParams("0x0000000000000000000000000000000000000000", listOf<Any>(), block.toHex()),
+                        )
+                        upstream.getIngressReader()
+                            .read(request)
+                            .timeout(Defaults.internalCallsTimeout)
+                            .doOnNext {
+                                if (it.hasResult() && it.getResult().contentEquals("null".toByteArray())) {
+                                    throw IllegalStateException(NO_PROOF_DATA)
+                                }
+                            }
+                    }
+                }.flatMap {
+                    Flux.just(it, lowerBoundFrom(it, LowerBoundType.PROOF))
+                }
+            }
     }
 
     override fun types(): Set<LowerBoundType> {
