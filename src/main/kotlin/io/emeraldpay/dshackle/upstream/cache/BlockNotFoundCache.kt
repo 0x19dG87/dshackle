@@ -68,15 +68,24 @@ object BlockNotFoundCache {
 
     /**
      * Extract block hash from error message if present.
-     * Matches patterns like "block not found: hash 0x..."
+     * Matches patterns like:
+     * - "block not found: 0x<hash>"
+     * - "block <hash> not found" (hash without 0x prefix, e.g. pinax)
      */
     fun extractBlockHashFromError(errorMessage: String?): String? {
         if (errorMessage == null) return null
-        if (!errorMessage.contains("block not found", ignoreCase = true)) return null
 
-        // Look for a 66-character hex hash (0x + 64 chars)
-        val hashRegex = Regex("0x[a-fA-F0-9]{64}")
-        return hashRegex.find(errorMessage)?.value?.lowercase()
+        // Pattern: "block not found ..." with 0x-prefixed hash anywhere in the message
+        if (errorMessage.contains("block not found", ignoreCase = true)) {
+            val hashWithPrefix = Regex("0x[a-fA-F0-9]{64}")
+            hashWithPrefix.find(errorMessage)?.let { return it.value.lowercase() }
+        }
+
+        // Pattern: "block <hash> not found" where hash has no 0x prefix
+        val blockHashNotFound = Regex("block ([a-fA-F0-9]{64}) not found", RegexOption.IGNORE_CASE)
+        blockHashNotFound.find(errorMessage)?.let { return "0x${it.groupValues[1].lowercase()}" }
+
+        return null
     }
 
     /**
