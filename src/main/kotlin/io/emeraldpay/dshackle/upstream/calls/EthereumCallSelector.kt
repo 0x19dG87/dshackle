@@ -61,6 +61,16 @@ class EthereumCallSelector(
             "eth_getBlockTransactionCountByNumber", "bor_getAuthor", "eth_getUncleCountByBlockNumber",
             "eth_getUncleByBlockNumberAndIndex",
         )
+
+        // Methods that always operate on the current chain head and accept no block tag parameter
+        private val IMPLICIT_LATEST_METHODS = setOf(
+            "eth_blockNumber",
+            "eth_gasPrice",
+            "eth_estimateGas",
+            "eth_maxPriorityFeePerGas",
+            "eth_blobBaseFee",
+            "eth_feeHistory",
+        )
     }
 
     private val objectMapper = Global.objectMapper
@@ -85,6 +95,10 @@ class EthereumCallSelector(
                 }
                 in FILTER_OBJECT_METHODS -> {
                     return blockTagSelector(params, 0, "toBlock", head)
+                }
+                in IMPLICIT_LATEST_METHODS -> {
+                    val height = head.getCurrentHeight()
+                    return if (height != null) Mono.just(Selector.HeightMatcher(height)) else Mono.empty()
                 }
             }
         }

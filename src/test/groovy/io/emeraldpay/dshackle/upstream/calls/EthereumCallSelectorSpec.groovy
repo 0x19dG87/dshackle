@@ -397,6 +397,50 @@ class EthereumCallSelectorSpec extends Specification {
         "eth_newFilter" | '[{"toBlock":"0xfbfe3b", "toBlock":"earliest"}]'
     }
 
+    def "Get height matcher for implicitly-latest methods"() {
+        setup:
+        EthereumCallSelector callSelector = new EthereumCallSelector(Stub(Caches))
+        def head = Mock(Head) {
+            _ * getCurrentHeight() >> 100
+        }
+        when:
+        def act = callSelector.getMatcher(method, params, head, false).block()
+        then:
+        act == new Selector.HeightMatcher(100)
+        where:
+        method                        | params
+        "eth_blockNumber"             | "[]"
+        "eth_gasPrice"                | "[]"
+        "eth_estimateGas"             | '[{"from":"0x0","to":"0x1"}]'
+        "eth_maxPriorityFeePerGas"    | "[]"
+        "eth_blobBaseFee"             | "[]"
+        "eth_feeHistory"              | '[4, "latest", [25, 75]]'
+    }
+
+    def "No height matcher for implicitly-latest methods in passthrough mode"() {
+        setup:
+        EthereumCallSelector callSelector = new EthereumCallSelector(Stub(Caches))
+        def head = Mock(Head) {
+            0 * getCurrentHeight()
+        }
+        when:
+        def act = callSelector.getMatcher("eth_blockNumber", "[]", head, true).blockOptional()
+        then:
+        !act.isPresent()
+    }
+
+    def "No height matcher for implicitly-latest methods when head is uninitialized"() {
+        setup:
+        EthereumCallSelector callSelector = new EthereumCallSelector(Stub(Caches))
+        def head = Mock(Head) {
+            1 * getCurrentHeight() >> null
+        }
+        when:
+        def act = callSelector.getMatcher("eth_blockNumber", "[]", head, false).blockOptional()
+        then:
+        !act.isPresent()
+    }
+
     def "Get height matcher for bor method"() {
         setup:
         def cache = Stub(Caches)
