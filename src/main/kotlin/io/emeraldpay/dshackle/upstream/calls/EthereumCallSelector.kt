@@ -158,7 +158,7 @@ class EthereumCallSelector(
             "earliest" -> 0L // for earliest it does nothing, we expect to have 0 block
             else -> if (tag.startsWith("0x") || tag.toLongOrNull() != null) {
                 return if (tag.length == 66) { // 32-byte hash is represented as 0x + 64 characters
-                    blockByHash(tag)
+                    blockByHash(tag, head)
                 } else {
                     blockByHeight(tag)
                 }
@@ -174,7 +174,7 @@ class EthereumCallSelector(
         }
     }
 
-    fun blockByHash(blockHash: String): Mono<Selector.Matcher> {
+    fun blockByHash(blockHash: String, head: Head): Mono<Selector.Matcher> {
         return try {
             caches.getLastHeightByHash()
                 .read(BlockId.from(blockHash))
@@ -188,9 +188,9 @@ class EthereumCallSelector(
                     )
                 }
                 .switchIfEmpty(
-                    // Block hash not in cache - allow all upstreams to be tried.
-                    // Role-based ordering and retry mechanism will handle routing.
-                    Mono.just(Selector.empty),
+                    Mono.justOrEmpty(head.getCurrentHeight())
+                        .map<Selector.Matcher> { Selector.HeightMatcher(it) }
+                        .defaultIfEmpty(Selector.empty),
                 )
         } catch (e: DecoderException) {
             log.warn("Invalid blockHash: $blockHash")

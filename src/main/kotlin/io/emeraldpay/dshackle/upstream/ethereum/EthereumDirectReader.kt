@@ -188,7 +188,7 @@ class EthereumDirectReader(
                         ),
                     ),
                 )
-                return EthereumCallSelector(caches).blockByHash(key.toHexWithPrefix())
+                return EthereumCallSelector(caches).blockByHash(key.toHexWithPrefix(), up.getHead())
                     .defaultIfEmpty(Selector.empty).flatMap { matcher ->
                         readWithQuorum(request, matcher)
                             .timeout(Defaults.timeoutInternal, Mono.error(TimeoutException("Logs not read $key")))

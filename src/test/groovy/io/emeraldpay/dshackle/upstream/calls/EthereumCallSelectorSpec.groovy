@@ -312,7 +312,7 @@ class EthereumCallSelectorSpec extends Specification {
         "eth_getUncleByBlockNumberAndIndex" | '["earliest"]' | 0L
     }
 
-    def "Returns empty matcher when hash not in cache to allow all upstreams"() {
+    def "Returns height matcher when hash not in cache but head has current height"() {
         setup:
         def hash = "0xa6af163aab691919c595e2a466f0a7b01f1dff8cfd9631dee811df57064c2d32"
         def cache = Mock(Caches) { caches ->
@@ -321,7 +321,9 @@ class EthereumCallSelectorSpec extends Specification {
             }
         }
         def callSelector = new EthereumCallSelector(cache)
-        def head = Stub(Head)
+        def head = Mock(Head) {
+            _ * getCurrentHeight() >> 44000000L
+        }
 
         when:
         def act = callSelector.getMatcher(
@@ -330,7 +332,35 @@ class EthereumCallSelectorSpec extends Specification {
         )
 
         then:
-        // When hash is not in cache, allow all upstreams to be tried
+        StepVerifier.create(act)
+                .expectNext(new Selector.HeightMatcher(44000000L))
+                .expectComplete()
+                .verify(Duration.ofSeconds(1))
+
+        where:
+        resultFromCache << [Mono.empty(), Mono.error(new RuntimeException())]
+    }
+
+    def "Returns empty matcher when hash not in cache and head has no current height"() {
+        setup:
+        def hash = "0xa6af163aab691919c595e2a466f0a7b01f1dff8cfd9631dee811df57064c2d32"
+        def cache = Mock(Caches) { caches ->
+            1 * caches.getLastHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
+                1 * memCache.read(BlockId.from(hash)) >> resultFromCache
+            }
+        }
+        def callSelector = new EthereumCallSelector(cache)
+        def head = Mock(Head) {
+            _ * getCurrentHeight() >> null
+        }
+
+        when:
+        def act = callSelector.getMatcher(
+                "eth_getBlockByHash", '["0xa6af163aab691919c595e2a466f0a7b01f1dff8cfd9631dee811df57064c2d32", false]',
+                head, false
+        )
+
+        then:
         StepVerifier.create(act)
                 .expectNext(Selector.empty)
                 .expectComplete()
