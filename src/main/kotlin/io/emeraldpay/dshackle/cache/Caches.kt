@@ -291,7 +291,7 @@ open class Caches(
     /**
      * Returns a reader that resolves block height by hash, checking mem cache first, then Redis if configured.
      */
-    fun getHeightByHash(): Reader<BlockId, Long> {
+    open fun getHeightByHash(): Reader<BlockId, Long> {
         val redis = redisHeightByHashCache ?: return memHeightByHash
         return object : Reader<BlockId, Long> {
             override fun read(key: BlockId): Mono<Long> =

@@ -79,7 +79,7 @@ class EthereumCallSelectorSpec extends Specification {
     def "Get height matcher for balance on block referred by hash"() {
         setup:
         def cache = Mock(Caches) { caches ->
-            1 * caches.getLastHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
+            1 * caches.getHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
                 1 * memCache.read(BlockId.from("0xc90f1c8c125a4d5b90742f16947bdb1d10516f173fd7fc51223d10499de2a812")) >> Mono.just(8606722L)
             }
         }
@@ -156,7 +156,7 @@ class EthereumCallSelectorSpec extends Specification {
     def "Get hash matcher with EIP-1898"() {
         setup:
         def cache = Mock(Caches) { caches ->
-            1 * caches.getLastHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
+            1 * caches.getHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
                 1 * memCache.read(BlockId.from("0xa6af163aab691919c595e2a466f0a7b01f1dff8cfd9631dee811df57064c2d32")) >> Mono.just(12079192L)
             }
         }
@@ -173,7 +173,7 @@ class EthereumCallSelectorSpec extends Specification {
     def "Get empty matcher for block tag with passthrough arg"() {
         setup:
         def cache = Mock(Caches) { caches ->
-            0 * caches.getLastHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
+            0 * caches.getHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
                 0 * memCache.read(BlockId.from("0xa6af163aab691919c595e2a466f0a7b01f1dff8cfd9631dee811df57064c2d32")) >> Mono.just(12079192L)
             }
         }
@@ -221,7 +221,7 @@ class EthereumCallSelectorSpec extends Specification {
         def hash = "0xa6af163aab691919c595e2a466f0a7b01f1dff8cfd9631dee811df57064c2d32"
         def blockHeight = 12079192L
         def cache = Mock(Caches) { caches ->
-            1 * caches.getLastHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
+            1 * caches.getHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
                 1 * memCache.read(BlockId.from(hash)) >> Mono.just(blockHeight)
             }
         }
@@ -312,17 +312,17 @@ class EthereumCallSelectorSpec extends Specification {
         "eth_getUncleByBlockNumberAndIndex" | '["earliest"]' | 0L
     }
 
-    def "Returns height matcher when hash not in cache but head has current height"() {
+    def "Returns empty matcher when hash not in cache"() {
         setup:
         def hash = "0xa6af163aab691919c595e2a466f0a7b01f1dff8cfd9631dee811df57064c2d32"
         def cache = Mock(Caches) { caches ->
-            1 * caches.getLastHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
+            1 * caches.getHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
                 1 * memCache.read(BlockId.from(hash)) >> resultFromCache
             }
         }
         def callSelector = new EthereumCallSelector(cache)
         def head = Mock(Head) {
-            _ * getCurrentHeight() >> 44000000L
+            0 * getCurrentHeight()
         }
 
         when:
@@ -333,7 +333,7 @@ class EthereumCallSelectorSpec extends Specification {
 
         then:
         StepVerifier.create(act)
-                .expectNext(new Selector.HeightMatcher(44000000L))
+                .expectNext(Selector.empty)
                 .expectComplete()
                 .verify(Duration.ofSeconds(1))
 
@@ -345,13 +345,13 @@ class EthereumCallSelectorSpec extends Specification {
         setup:
         def hash = "0xa6af163aab691919c595e2a466f0a7b01f1dff8cfd9631dee811df57064c2d32"
         def cache = Mock(Caches) { caches ->
-            1 * caches.getLastHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
+            1 * caches.getHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
                 1 * memCache.read(BlockId.from(hash)) >> resultFromCache
             }
         }
         def callSelector = new EthereumCallSelector(cache)
         def head = Mock(Head) {
-            _ * getCurrentHeight() >> null
+            0 * getCurrentHeight()
         }
 
         when:
@@ -373,7 +373,7 @@ class EthereumCallSelectorSpec extends Specification {
     def "Get height matcher for getLogs and eth_newFilter method"() {
         setup:
         def cache = Mock(Caches) { caches ->
-            caches.getLastHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
+            caches.getHeightByHash() >> Mock(HeightByHashMemCache) { memCache ->
                 memCache.read(BlockId.from("0xa29ddfc1b37d0b6d0c4a670fa54778656e890d8bbc1b3a6f7d913bc9eb5e03a1")) >> Mono.just(46208179L)
             }
         }
