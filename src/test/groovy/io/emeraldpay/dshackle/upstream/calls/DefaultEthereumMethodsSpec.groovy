@@ -1,6 +1,7 @@
 package io.emeraldpay.dshackle.upstream.calls
 
 import io.emeraldpay.dshackle.Chain
+import io.emeraldpay.dshackle.quorum.MaximumValueQuorum
 import spock.lang.Specification
 
 class DefaultEthereumMethodsSpec extends Specification {
@@ -39,6 +40,15 @@ class DefaultEthereumMethodsSpec extends Specification {
         chain                  | id
         Chain.ETHEREUM__MAINNET | '"0x1"'
         Chain.ETHEREUM_CLASSIC__MAINNET | '"0x3d"'
+    }
+
+    def "eth_blockNumber uses MaximumValueQuorum"() {
+        setup:
+        def methods = new DefaultEthereumMethods(Chain.ETHEREUM__MAINNET)
+        when:
+        def quorum = methods.createQuorumFor("eth_blockNumber")
+        then:
+        quorum instanceof MaximumValueQuorum
     }
 
     def "Optimism chain unsupported methods"() {

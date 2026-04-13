@@ -646,7 +646,7 @@ class DefaultEthereumMethods(
             possibleNotIndexedMethods.contains(method) || harmonyPossibleNotIndexedMethods.contains(method) || klayPossibleNotIndexedMethods.contains(method) || kaiaPossibleNotIndexedMethods.contains(method) -> NotNullQuorum()
             specialMethods.contains(method) || harmonySpecialMethods.contains(method) || klaySpecialMethods.contains(method) || kaiaSpecialMethods.contains(method) -> {
                 when (method) {
-                    "eth_getTransactionCount", "hmy_getTransactionCount", "klay_getTransactionCount", "kaia_getTransactionCount" -> MaximumValueQuorum()
+                    "eth_getTransactionCount", "hmy_getTransactionCount", "klay_getTransactionCount", "kaia_getTransactionCount", "eth_blockNumber" -> MaximumValueQuorum()
                     "eth_sendRawTransaction", "hmy_sendRawStakingTransaction", "hmy_sendRawTransaction", "klay_sendRawTransaction", "kaia_sendRawTransaction", "Filecoin.MpoolPush" -> BroadcastQuorum()
                     else -> AlwaysQuorum()
                 }
