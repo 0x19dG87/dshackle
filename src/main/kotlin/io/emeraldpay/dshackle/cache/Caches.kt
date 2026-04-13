@@ -288,6 +288,17 @@ open class Caches(
         return redisHeightByHashCache
     }
 
+    /**
+     * Returns a reader that resolves block height by hash, checking mem cache first, then Redis if configured.
+     */
+    fun getHeightByHash(): Reader<BlockId, Long> {
+        val redis = redisHeightByHashCache ?: return memHeightByHash
+        return object : Reader<BlockId, Long> {
+            override fun read(key: BlockId): Mono<Long> =
+                memHeightByHash.read(key).switchIfEmpty(redis.read(key))
+        }
+    }
+
     enum class Tag {
         /**
          * Latest data produced by blockchain

@@ -176,7 +176,7 @@ class EthereumCallSelector(
 
     fun blockByHash(blockHash: String, head: Head): Mono<Selector.Matcher> {
         return try {
-            caches.getLastHeightByHash()
+            caches.getHeightByHash()
                 .read(BlockId.from(blockHash))
                 .onErrorResume { Mono.empty() }
                 .map<Selector.Matcher> { height ->
@@ -187,11 +187,7 @@ class EthereumCallSelector(
                         ),
                     )
                 }
-                .switchIfEmpty(
-                    Mono.justOrEmpty(head.getCurrentHeight())
-                        .map<Selector.Matcher> { Selector.HeightMatcher(it) }
-                        .defaultIfEmpty(Selector.empty),
-                )
+                .defaultIfEmpty(Selector.empty)
         } catch (e: DecoderException) {
             log.warn("Invalid blockHash: $blockHash")
             Mono.empty()
