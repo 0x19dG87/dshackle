@@ -10,6 +10,7 @@ import io.emeraldpay.dshackle.reader.BroadcastReader
 import io.emeraldpay.dshackle.reader.RequestReaderFactory
 import io.emeraldpay.dshackle.upstream.MultistreamHolder
 import io.emeraldpay.dshackle.upstream.Selector
+import io.emeraldpay.dshackle.upstream.signature.DisabledSigner
 import io.grpc.BindableService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -78,7 +79,7 @@ class IntegrationTest {
                 ms,
                 Selector.UpstreamFilter.default,
                 txQuorum,
-                null,
+                DisabledSigner(),
             ),
         )
         val txCountReader = reqReader.create(
@@ -86,7 +87,7 @@ class IntegrationTest {
                 ms,
                 Selector.UpstreamFilter.default,
                 txCountQuorum,
-                null,
+                DisabledSigner(),
             ),
         )
 

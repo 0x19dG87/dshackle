@@ -35,6 +35,7 @@ class EthereumLowerBoundProofDetector(
             "required historical state unavailable",
             "evm module does not exist on height",
             "First available state is", // drpc polygon — node has limited proof window
+            "state is not available", // opbnb / bsc — eth_getProof on pruned state
         )
     }
 

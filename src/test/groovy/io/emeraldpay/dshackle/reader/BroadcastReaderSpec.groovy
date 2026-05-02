@@ -8,6 +8,7 @@ import io.emeraldpay.dshackle.upstream.ChainRequest
 import io.emeraldpay.dshackle.upstream.ChainResponse
 import io.emeraldpay.dshackle.upstream.calls.DirectCallMethods
 import io.emeraldpay.dshackle.upstream.rpcclient.ListParams
+import io.emeraldpay.dshackle.upstream.signature.DisabledSigner
 import reactor.core.publisher.Mono
 import reactor.test.StepVerifier
 import spock.lang.Specification
@@ -46,7 +47,7 @@ class BroadcastReaderSpec extends Specification {
                         Mono.just(new ChainResponse(result, null))
             }
         }
-        def reader = new BroadcastReader([up, up1, up2], new Selector.EmptyMatcher(), null, new BroadcastQuorum())
+        def reader = new BroadcastReader([up, up1, up2], new Selector.EmptyMatcher(), new DisabledSigner(), new BroadcastQuorum())
         when:
         def act = reader.read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"])))
         then:
@@ -87,7 +88,7 @@ class BroadcastReaderSpec extends Specification {
                 1 * read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"]))) >>
                         Mono.error(new ChainException(1, "too low"))            }
         }
-        def reader = new BroadcastReader([up, up1, up2], new Selector.EmptyMatcher(), null, new BroadcastQuorum())
+        def reader = new BroadcastReader([up, up1, up2], new Selector.EmptyMatcher(), new DisabledSigner(), new BroadcastQuorum())
         when:
         def act = reader.read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"])))
         then:
@@ -121,7 +122,7 @@ class BroadcastReaderSpec extends Specification {
             0 * getId() >> "id"
             0 * getIngressReader() >> Mock(Reader)
         }
-        def reader = new BroadcastReader([up, up1, up2], new Selector.EmptyMatcher(), null, new BroadcastQuorum())
+        def reader = new BroadcastReader([up, up1, up2], new Selector.EmptyMatcher(), new DisabledSigner(), new BroadcastQuorum())
         when:
         def act = reader.read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"])))
         then:
@@ -162,7 +163,7 @@ class BroadcastReaderSpec extends Specification {
                         Mono.error(new ChainException(1, "too low"))
             }
         }
-        def reader = new BroadcastReader([up, up1, up2], new Selector.EmptyMatcher(), null, new BroadcastQuorum())
+        def reader = new BroadcastReader([up, up1, up2], new Selector.EmptyMatcher(), new DisabledSigner(), new BroadcastQuorum())
         when:
         def act = reader.read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"])))
         then:
@@ -188,7 +189,7 @@ class BroadcastReaderSpec extends Specification {
             0 * getId() >> "id"
             0 * getIngressReader() >> Mock(Reader)
         }
-        def reader = new BroadcastReader([up, up1, up2], new Selector.EmptyMatcher(), null, new BroadcastQuorum())
+        def reader = new BroadcastReader([up, up1, up2], new Selector.EmptyMatcher(), new DisabledSigner(), new BroadcastQuorum())
         when:
         def act = reader
                 .read(new ChainRequest("eth_sendRawTransaction", new ListParams(["0x1"])))
