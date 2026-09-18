@@ -22,6 +22,7 @@ class BasicHttpFactory(
     private val nettyMetricsEnabled: Boolean,
     private val httpScheduler: Scheduler,
     private val customHeaders: Map<String, String> = emptyMap(),
+    private val bearerAuth: AuthConfig.ClientBearerAuth? = null,
 ) : HttpFactory {
     private val log = LoggerFactory.getLogger(this::class.java)
 
@@ -35,11 +36,14 @@ class BasicHttpFactory(
             Tag.of("chain", chain.chainCode),
         )
         val metrics = RequestMetrics(
-            Timer.builder("upstream.rpc.conn")
-                .description("Request time through a HTTP JSON RPC connection")
-                .tags(metricsTags)
-                .publishPercentileHistogram()
-                .register(Metrics.globalRegistry),
+            { method ->
+                Timer.builder("upstream.rpc.conn")
+                    .description("Request time through a HTTP JSON RPC connection")
+                    .tags(metricsTags)
+                    .tag("method", method ?: "unknown")
+                    .publishPercentileHistogram()
+                    .register(Metrics.globalRegistry)
+            },
             Counter.builder("upstream.rpc.fail")
                 .description("Number of failures of HTTP JSON RPC requests")
                 .tags(metricsTags)
@@ -48,8 +52,8 @@ class BasicHttpFactory(
         )
 
         if (chain.type.apiType == ApiType.REST) {
-            return RestHttpReader(url, maxConnections, queueSize, metrics, httpScheduler, chain, basicAuth, tls, customHeaders, timeout)
+            return RestHttpReader(url, maxConnections, queueSize, metrics, httpScheduler, chain, basicAuth, tls, customHeaders, timeout, bearerAuth)
         }
-        return JsonRpcHttpReader(url, maxConnections, queueSize, metrics, httpScheduler, basicAuth, tls, customHeaders, timeout)
+        return JsonRpcHttpReader(url, maxConnections, queueSize, metrics, httpScheduler, basicAuth, tls, customHeaders, timeout, bearerAuth)
     }
 }

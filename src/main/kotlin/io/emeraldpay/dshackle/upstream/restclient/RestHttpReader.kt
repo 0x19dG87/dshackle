@@ -38,7 +38,8 @@ class RestHttpReader(
     tlsCAAuth: ByteArray? = null,
     customHeaders: Map<String, String> = emptyMap(),
     timeout: Duration = Duration.ofSeconds(60),
-) : HttpReader(target, maxConnections, queueSize, metrics, basicAuth, tlsCAAuth, customHeaders, timeout) {
+    bearerAuth: AuthConfig.ClientBearerAuth? = null,
+) : HttpReader(target, maxConnections, queueSize, metrics, basicAuth, tlsCAAuth, customHeaders, timeout, bearerAuth) {
 
     private val parser = ResponseRpcParser()
     private val requestParser = RestRequestParser
@@ -61,7 +62,7 @@ class RestHttpReader(
             .flatMap(this::execute)
             .doOnNext {
                 if (startTime.isStarted) {
-                    metrics?.timer?.record(startTime.nanoTime, TimeUnit.NANOSECONDS)
+                    metrics?.timer(key.method)?.record(startTime.nanoTime, TimeUnit.NANOSECONDS)
                 }
             }
             .handle { it, sink ->

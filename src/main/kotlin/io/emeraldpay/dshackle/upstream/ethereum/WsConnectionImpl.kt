@@ -67,6 +67,7 @@ open class WsConnectionImpl(
     private val scheduler: Scheduler,
     private val eventsScheduler: Scheduler,
     private val customHeaders: Map<String, String> = emptyMap(),
+    private val bearerAuth: AuthConfig.ClientBearerAuth? = null,
 ) : AutoCloseable, WsConnection, Cloneable {
 
     companion object {
@@ -226,6 +227,11 @@ open class WsConnectionImpl(
                     val tmp: String = auth.username + ":" + auth.password
                     val base64password = Base64.getEncoder().encodeToString(tmp.toByteArray())
                     headers.add(HttpHeaderNames.AUTHORIZATION, "Basic $base64password")
+                }
+                if (basicAuth == null) {
+                    bearerAuth?.let { auth ->
+                        headers.add(HttpHeaderNames.AUTHORIZATION, "Bearer ${auth.token}")
+                    }
                 }
                 customHeaders.forEach { (key, value) ->
                     headers.add(key, value)
@@ -404,7 +410,7 @@ open class WsConnectionImpl(
         return Mono.from(onResponse.asMono()).or(failOnDisconnect)
             .doOnSubscribe { sendRpc(request) }
             .take(Defaults.timeout)
-            .doOnNext { requestMetrics?.timer?.record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS) }
+            .doOnNext { requestMetrics?.timer()?.record(System.nanoTime() - startTime, TimeUnit.NANOSECONDS) }
             .doOnError { requestMetrics?.fails?.increment() }
             .map { it.copyWithId(ChainResponse.Id.from(originalId)) }
             .switchIfEmpty(
@@ -424,7 +430,7 @@ open class WsConnectionImpl(
             it.close()
             Metrics.globalRegistry.remove(it)
         }
-        requestMetrics?.timer?.let {
+        requestMetrics?.registeredTimers()?.forEach {
             it.close()
             Metrics.globalRegistry.remove(it)
         }

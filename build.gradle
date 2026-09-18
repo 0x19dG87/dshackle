@@ -10,7 +10,7 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.9.1'
+        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.10.0'
     }
 }
 
@@ -36,8 +36,8 @@ group = 'io.emeraldpay.dshackle'
 version = getVersion()
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_24
-    targetCompatibility = JavaVersion.VERSION_24
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
 }
 
 repositories {
@@ -124,10 +124,10 @@ dependencies {
 }
 
 compileKotlin {
-    compilerOptions.jvmTarget.set(JvmTarget.JVM_24)
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_25)
 }
 compileTestKotlin {
-    compilerOptions.jvmTarget.set(JvmTarget.JVM_24)
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_25)
 }
 
 test {
@@ -186,7 +186,7 @@ jib {
     }
     container {
         creationTime = 'USE_CURRENT_TIMESTAMP'
-        jvmFlags = ['-XX:+UseG1GC', '-XX:+ExitOnOutOfMemoryError', '-Xms1024M', '-XX:NativeMemoryTracking=summary', '-XX:+UnlockDiagnosticVMOptions', '-XX:GCLockerRetryAllocationCount=10', '--enable-preview']
+        jvmFlags = ['-XX:+UseG1GC', '-XX:+ExitOnOutOfMemoryError', '-Xms1024M', '-XX:NativeMemoryTracking=summary', '-XX:+UnlockDiagnosticVMOptions', '--enable-preview']
         mainClass = 'io.emeraldpay.dshackle.StarterKt'
         args = []
         ports = ['2448', '2449', '8545']

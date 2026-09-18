@@ -37,7 +37,7 @@ import java.util.function.Function
 /**
  * JSON RPC client
  */
-class JsonRpcHttpReader(
+class JsonRpcHttpReader @JvmOverloads constructor(
     target: String,
     maxConnections: Int,
     queueSize: Int,
@@ -47,7 +47,8 @@ class JsonRpcHttpReader(
     tlsCAAuth: ByteArray? = null,
     customHeaders: Map<String, String> = emptyMap(),
     timeout: Duration = Duration.ofSeconds(60),
-) : HttpReader(target, maxConnections, queueSize, metrics, basicAuth, tlsCAAuth, customHeaders, timeout) {
+    bearerAuth: AuthConfig.ClientBearerAuth? = null,
+) : HttpReader(target, maxConnections, queueSize, metrics, basicAuth, tlsCAAuth, customHeaders, timeout, bearerAuth) {
 
     private val parser = ResponseRpcParser()
     private val streamParser = JsonRpcStreamParser()
@@ -94,7 +95,7 @@ class JsonRpcHttpReader(
             .flatMap(this@JsonRpcHttpReader::execute)
             .doOnNext {
                 if (startTime.isStarted) {
-                    metrics?.timer?.record(startTime.nanoTime, TimeUnit.NANOSECONDS)
+                    metrics?.timer(key.method)?.record(startTime.nanoTime, TimeUnit.NANOSECONDS)
                 }
             }
             .transform(asJsonRpcResponse(key))

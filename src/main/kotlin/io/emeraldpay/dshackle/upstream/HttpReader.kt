@@ -29,6 +29,7 @@ abstract class HttpReader(
     tlsCAAuth: ByteArray? = null,
     customHeaders: Map<String, String> = emptyMap(),
     timeout: Duration = Duration.ofSeconds(60),
+    bearerAuth: AuthConfig.ClientBearerAuth? = null,
 ) : ChainReader {
 
     constructor() : this("", 1500, 1000, null, null, null, emptyMap(), Duration.ofSeconds(60))
@@ -68,6 +69,13 @@ abstract class HttpReader(
             build = build.headers(headers)
         }
 
+        if (basicAuth == null) {
+            bearerAuth?.let { auth ->
+                val headers = Consumer { h: HttpHeaders -> h.add(HttpHeaderNames.AUTHORIZATION, "Bearer ${auth.token}") }
+                build = build.headers(headers)
+            }
+        }
+
         if (customHeaders.isNotEmpty()) {
             val headers = Consumer { h: HttpHeaders ->
                 customHeaders.forEach { (key, value) ->
@@ -103,7 +111,7 @@ abstract class HttpReader(
 
     open fun onStop() {
         if (metrics != null) {
-            Metrics.globalRegistry.remove(metrics.timer)
+            metrics.registeredTimers().forEach { Metrics.globalRegistry.remove(it) }
             Metrics.globalRegistry.remove(metrics.fails)
         }
     }

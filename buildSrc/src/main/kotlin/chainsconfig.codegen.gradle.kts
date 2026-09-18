@@ -142,6 +142,10 @@ open class CodeGen(private val config: ChainsConfig) {
             "kadena" -> "BlockchainType.KADENA"
             "avm" -> "BlockchainType.AVM"
             "app" -> "BlockchainType.ETHEREUM"
+            "aptos" -> "BlockchainType.ETHEREUM" // suppress, it hasn't been supported yet
+            "stellar" -> "BlockchainType.ETHEREUM" // suppress, it hasn't been supported yet
+            "celestia" -> "BlockchainType.ETHEREUM" // suppress, it hasn't been supported yet
+            "sui" -> "BlockchainType.ETHEREUM" // suppress, it hasn't been supported yet
             else -> throw IllegalArgumentException("unknown blockchain type $type")
         }
     }

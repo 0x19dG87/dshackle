@@ -180,6 +180,7 @@ class DefaultEthereumMethods(
     private val firstValueMethods = listOf(
         "eth_call",
         "eth_getStorageAt",
+        "eth_getStorageValues",
         "eth_getCode",
         "eth_getLogs",
         "eth_maxPriorityFeePerGas",

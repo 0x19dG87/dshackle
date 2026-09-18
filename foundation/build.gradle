@@ -1,6 +1,9 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 plugins {
-    id 'org.jetbrains.kotlin.jvm' version '2.3.0'
+    id 'org.jetbrains.kotlin.jvm' version '2.3.21'
     id 'maven-publish'
+    id 'java'
 }
 
 repositories {
@@ -10,21 +13,22 @@ repositories {
 
 group = 'dshackle'
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+compileKotlin {
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_25)
+}
+compileTestKotlin {
+    compilerOptions.jvmTarget.set(JvmTarget.JVM_25)
+}
+
 dependencies {
-    implementation 'org.yaml:snakeyaml:1.24'
+    implementation 'org.yaml:snakeyaml:2.6'
     testImplementation 'org.junit.jupiter:junit-jupiter:6.0.3'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_24
-    }
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_24
-    targetCompatibility = JavaVersion.VERSION_24
 }
 
 test {

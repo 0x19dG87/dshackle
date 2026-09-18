@@ -44,6 +44,7 @@ import reactor.core.Disposable
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Sinks
 import reactor.core.scheduler.Schedulers
+import java.net.URI
 import java.time.Duration
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -114,6 +115,8 @@ open class GenericUpstream(
     ) {
         rpcMethodsDetector = upstreamRpcMethodsDetectorBuilder(this, config)
         detectRpcMethods(config, buildMethods)
+        rpcConnectionUrl = (config.connection as? UpstreamsConfig.RpcConnection)
+            ?.let { it.rpc?.url ?: it.ws?.url }
     }
 
     private val validator: UpstreamValidator? = validatorBuilder(chain, this, getOptions(), chainConfig, versionRules)
@@ -123,6 +126,8 @@ open class GenericUpstream(
     private val settingsDetectorSubscription = AtomicReference<Disposable?>()
 
     private val hasLiveSubscriptionHead: AtomicBoolean = AtomicBoolean(getOptions().disableLivenessSubscriptionValidation)
+    private val hasPendingTxs = AtomicBoolean(getOptions().disablePendingTxValidation)
+
     protected val connector: GenericConnector = connectorFactory.create(this, chain)
         .also { upConnector ->
             Gauge.builder("upstream_head", upConnector.getHead()) {
@@ -133,8 +138,12 @@ open class GenericUpstream(
                 .register(Metrics.globalRegistry)
         }
     private val livenessSubscription = AtomicReference<Disposable?>()
+    private val pendingTxSubscription = AtomicReference<Disposable?>()
     private val settingsDetector = upstreamSettingsDetectorBuilder(chain, this)
     private var rpcMethodsDetector: UpstreamRpcMethodsDetector? = null
+
+    // configured RPC/WS URL (carries query flags like ?hl=)
+    private var rpcConnectionUrl: URI? = null
 
     private val lowerBoundService = lowerBoundServiceBuilder(chain, this)
 
@@ -163,11 +172,14 @@ open class GenericUpstream(
 
     // outdated, looks like applicable only for bitcoin and our ws_head trick
     override fun getCapabilities(): Set<Capability> {
-        return if (hasLiveSubscriptionHead.get()) {
-            setOf(Capability.RPC, Capability.BALANCE, Capability.WS_HEAD)
-        } else {
-            setOf(Capability.RPC, Capability.BALANCE)
+        val caps = mutableSetOf(Capability.RPC, Capability.BALANCE)
+        if (hasLiveSubscriptionHead.get()) {
+            caps.add(Capability.WS_HEAD)
         }
+        if (hasPendingTxs.get()) {
+            caps.add(Capability.WS_PENDING_TX)
+        }
+        return caps
     }
 
     override fun isGrpc(): Boolean {
@@ -190,6 +202,8 @@ open class GenericUpstream(
             clientVersion.get(),
         )
     }
+
+    fun getRpcConnectionUrl(): URI? = rpcConnectionUrl
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : Upstream> cast(selfType: Class<T>): T {
@@ -371,6 +385,14 @@ open class GenericUpstream(
                 ),
             )
         }
+        if (!getOptions().disablePendingTxValidation) {
+            pendingTxSubscription.set(
+                connector.pendingTxEvents().subscribe {
+                    hasPendingTxs.set(it)
+                    sendUpstreamStateEvent(UPDATED)
+                },
+            )
+        }
         detectSettings()
 
         if (!getOptions().disableBoundValidation) {
@@ -393,6 +415,7 @@ open class GenericUpstream(
         lowerBlockDetectorSubscription.getAndSet(null)?.dispose()
         finalizationDetectorSubscription.getAndSet(null)?.dispose()
         settingsDetectorSubscription.getAndSet(null)?.dispose()
+        pendingTxSubscription.getAndSet(null)?.dispose()
         connector.getHead().stop()
     }
 
